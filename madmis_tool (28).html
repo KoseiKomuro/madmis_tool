@@ -1,0 +1,2693 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>マダミス制作ツール（ストーリー＆タイムライン生成）</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=M+PLUS+1:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: #2e2e3e;
+      --border-light: #3a3a4e;
+      --text: #e8e8f0;
+      --text-muted: #8888a0;
+      --accent: #6c5ce7;
+      --accent-light: #a29bfe;
+      --accent-glow: rgba(108,92,231,0.15);
+      --danger: #ff6b6b;
+      --success: #51cf66;
+      --warn: #ffd43b;
+      --card-radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', 'M PLUS 1', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ===== Top Nav Tabs ===== */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .top-nav .logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-light);
+      margin-right: 24px;
+      padding: 14px 0;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+    .top-nav .tab-btn {
+      padding: 14px 20px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .top-nav .tab-btn:hover {
+      color: var(--text);
+      background: var(--accent-glow);
+    }
+    .top-nav .tab-btn.active {
+      color: var(--accent-light);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ===== Tab Content ===== */
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+
+    /* ===== Common Styles ===== */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent-light);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .input-group { margin-bottom: 14px; }
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input[type="text"], input[type="number"], textarea, select {
+      font: inherit;
+      font-size: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 8px 12px;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    input[type="number"] { width: 100px; }
+
+    textarea {
+      font-family: 'M PLUS 1', ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .btn {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--border); border-color: var(--border-light); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #5a4bd6; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+    .status-msg {
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .status-msg.ok { display:block; background: rgba(81,207,102,0.1); color: var(--success); border: 1px solid rgba(81,207,102,0.2); }
+    .status-msg.warn { display:block; background: rgba(255,107,107,0.1); color: var(--danger); border: 1px solid rgba(255,107,107,0.2); }
+    .status-msg.info { display:block; background: rgba(108,92,231,0.1); color: var(--accent-light); border: 1px solid rgba(108,92,231,0.2); }
+
+    /* Phase indicator */
+    .phase-steps { display: flex; gap: 0; margin-bottom: 24px; }
+    .phase-step {
+      flex: 1; padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); position: relative;
+    }
+    .phase-step:first-child { border-radius: 8px 0 0 8px; }
+    .phase-step:last-child { border-radius: 0 8px 8px 0; }
+    .phase-step.active { background: var(--accent-glow); color: var(--accent-light); border-color: var(--accent); z-index: 1; }
+    .phase-step.done { background: rgba(81,207,102,0.08); color: var(--success); border-color: rgba(81,207,102,0.3); }
+    .phase-step .step-num { display: block; font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+
+    /* Output display */
+    .output-box {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+      max-height: 500px; overflow-y: auto;
+    }
+
+    /* Character tabs */
+    .char-tabs { display: flex; gap: 0; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .char-tab {
+      padding: 10px 18px; font: inherit; font-size: 13px; font-weight: 500;
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+    }
+    .char-tab:hover { color: var(--text); background: var(--accent-glow); }
+    .char-tab.active { color: var(--accent-light); border-bottom-color: var(--accent); }
+
+    .char-content { display: none; }
+    .char-content.active { display: block; }
+
+    .sub-title {
+      font-size: 14px; font-weight: 600; margin-bottom: 10px; color: var(--text);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sub-title .badge {
+      font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 999px; background: var(--accent); color: #fff;
+    }
+
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .evidence-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; font-size: 12px; line-height: 1.7;
+    }
+    .evidence-card .card-label {
+      font-size: 10px; font-weight: 700; color: var(--accent-light);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+    }
+
+    .loading-spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 300px; }
+
+    .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    /* ===== Timeline Tab Specific ===== */
+    #tab-timeline label { display: block; font-size: 12px; margin-top: 8px; color: var(--text-muted); }
+    #tab-timeline .btns { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    #tab-timeline .out { overflow:auto; max-height: 520px; }
+    #tab-timeline .pill { display:inline-block; padding: 1px 6px; border:1px solid var(--border); border-radius: 999px; margin: 1px; white-space: nowrap; font-size: 11px; }
+    #tab-timeline .muted { color: var(--text-muted); }
+    #tab-timeline details summary { cursor:pointer; color: var(--text-muted); }
+    #tab-timeline .tiny { font-size: 12px; color: var(--text-muted); }
+    #tab-timeline .line { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    #tab-timeline .listItem {
+      display:flex; gap:8px; align-items:center; justify-content:space-between;
+      border:1px solid var(--border); border-radius:10px; padding:8px; margin-top:6px;
+    }
+    #tab-timeline .listItem code { font-family: 'M PLUS 1', ui-monospace, monospace; font-size: 12px; }
+    #tab-timeline .w100 { width: 100%; }
+    #tab-timeline table { border-collapse: collapse; font-size: 12px; }
+    #tab-timeline th, #tab-timeline td { border: 1px solid var(--border); padding: 4px 6px; text-align: center; vertical-align: top; }
+    #tab-timeline th { position: sticky; top: 0; background: var(--surface); z-index: 1; color: var(--accent-light); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    .story-section { max-width: 1200px; margin: 0 auto; }
+
+    /* ===== Play Board ===== */
+    .play-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .play-card {
+      perspective: 600px;
+      cursor: pointer;
+      height: 160px;
+      user-select: none;
+    }
+    .play-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.5s;
+      transform-style: preserve-3d;
+    }
+    .play-card.flipped .play-card-inner {
+      transform: rotateY(180deg);
+    }
+    .play-card-front, .play-card-back {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.6;
+      border: 1px solid var(--border);
+    }
+    .play-card-front {
+      background: linear-gradient(135deg, #2a2a3e, #1e1e30);
+      color: var(--accent-light);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .play-card-front .card-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+      opacity: 0.6;
+    }
+    .play-card-back {
+      background: var(--surface);
+      color: var(--text);
+      transform: rotateY(180deg);
+      overflow-y: auto;
+    }
+    .play-card-back .card-title {
+      font-weight: 700;
+      color: var(--accent-light);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .play-card-back .card-body {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .play-card.common .play-card-front {
+      background: linear-gradient(135deg, #2e3a2e, #1e2e1e);
+      border-color: rgba(81,207,102,0.3);
+    }
+    .play-card.personal .play-card-front {
+      background: linear-gradient(135deg, #3a2a3e, #2e1e30);
+      border-color: rgba(162,155,254,0.3);
+    }
+    .play-char-section {
+      margin-bottom: 20px;
+    }
+    .play-char-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .play-char-header .char-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--accent-light);
+    }
+    .play-char-header .char-role {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Timer Panel ===== */
+    .timer-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 16px 24px;
+      margin-bottom: 20px;
+    }
+    .timer-phases {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+    }
+    .timer-phase {
+      flex: 1;
+      padding: 8px 12px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      transition: all 0.3s;
+    }
+    .timer-phase:first-child { border-radius: 8px 0 0 8px; }
+    .timer-phase:last-child { border-radius: 0 8px 8px 0; }
+    .timer-phase.active {
+      background: var(--accent-glow);
+      color: var(--accent-light);
+      border-color: var(--accent);
+    }
+    .timer-phase.done {
+      background: rgba(81,207,102,0.08);
+      color: var(--success);
+      border-color: rgba(81,207,102,0.3);
+    }
+    .timer-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .timer-clock {
+      font-size: 56px;
+      font-weight: 700;
+      font-family: 'M PLUS 1', monospace;
+      color: var(--text);
+      letter-spacing: 2px;
+    }
+    .timer-clock.warn { color: var(--warn); }
+    .timer-clock.danger { color: var(--danger); animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .timer-phase-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-light);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .timer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .timer-info {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Top Navigation ===== -->
+<nav class="top-nav">
+  <div class="logo">マダミス制作ツール</div>
+  <button class="tab-btn active" id="tabBtnStory">ストーリー等生成</button>
+  <button class="tab-btn" id="tabBtnTimeline">タイムライン生成</button>
+  <button class="tab-btn" id="tabBtnPlay">プレイ盤面</button>
+</nav>
+
+<!-- ============================================================ -->
+<!--  TAB 1: ストーリー等生成                                       -->
+<!-- ============================================================ -->
+<div id="tab-story" class="tab-content active">
+<div class="story-section">
+
+  <!-- Phase Steps -->
+  <div class="phase-steps">
+    <div class="phase-step active" id="phase1">
+      <span class="step-num">①</span>ユーザー指定 → メインストーリー生成
+    </div>
+    <div class="phase-step" id="phase2">
+      <span class="step-num">②</span>タイムライン作成（タイムラインタブ）
+    </div>
+    <div class="phase-step" id="phase3">
+      <span class="step-num">③</span>HO・カード・ED生成
+    </div>
+  </div>
+
+  <!-- ===== API Key ===== -->
+  <div class="card" style="border-color: var(--accent); background: linear-gradient(135deg, var(--surface), var(--accent-glow));">
+    <div class="input-group" style="margin-bottom:0;">
+      <label style="color:var(--accent-light); font-weight:600;">Google Gemini APIキー（無料・Phase 1&3 共通で1つだけでOK）</label>
+      <input type="password" id="apiKey" placeholder="AIzaSy..." style="font-family: monospace;" />
+      <div style="margin-top:8px; font-size:12px; color:var(--text-muted); line-height:1.8;">
+        <details>
+          <summary style="cursor:pointer; color:var(--accent-light); font-weight:600;">APIキーの取得方法（無料・クレジットカード不要）クリックで展開</summary>
+          <div style="margin-top:8px; padding:12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+            <strong style="color:var(--text);">手順（5分で完了）：</strong><br/>
+            ① <a href="https://aistudio.google.com/" target="_blank" style="color:var(--accent-light);">Google AI Studio</a> にアクセス（Googleアカウントでログイン）<br/>
+            ② 左サイドバーの「Get API key」をクリック<br/>
+            ③ 「Create API key」ボタンを押す<br/>
+            ④ 表示されたキー（<code style="color:var(--warn);">AIzaSy...</code> で始まる文字列）をコピー<br/>
+            ⑤ 上の入力欄にペーストすれば準備完了！<br/><br/>
+            <strong style="color:var(--text);">ポイント：</strong><br/>
+            ・<span style="color:var(--success); font-weight:600;">完全無料</span>：クレジットカード登録も不要です<br/>
+            ・<strong>Phase 1 と Phase 3 で共通</strong>：同じ1つのキーで両方使えます<br/>
+            ・<strong>無料枠</strong>：1日あたり最大1500リクエストまで（このツールでは1シナリオ2回なので余裕です）<br/>
+            ・<strong>キーは安全？</strong> → ブラウザ内でのみ使用され、ページを閉じると消えます<br/>
+            ・<strong>使用モデル</strong>：Gemini 2.5 Flash（高速・高品質・無料枠内）<br/><br/>
+            <strong style="color:var(--danger);">⚠ 重要：このファイルの開き方</strong><br/>
+            HTMLファイルをダブルクリックで直接開くと（<code>file://</code>）、セキュリティ制限でAPIに接続できません。<br/>
+            以下の手順で<strong>ローカルサーバー経由</strong>で開いてください：<br/><br/>
+            <strong>Windows の場合：</strong><br/>
+            ① このHTMLファイルがあるフォルダを開く<br/>
+            ② フォルダのアドレスバーに <code style="color:var(--warn);">cmd</code> と入力してEnter（コマンドプロンプトが開く）<br/>
+            ③ <code style="color:var(--warn);">python -m http.server 8000</code> と入力してEnter<br/>
+            ④ ブラウザで <a href="http://localhost:8000" target="_blank" style="color:var(--accent-light);">http://localhost:8000</a> を開く<br/>
+            ⑤ 表示されたファイル一覧からこのHTMLファイルをクリック<br/><br/>
+            <strong>Mac の場合：</strong><br/>
+            ① ターミナルを開き、<code style="color:var(--warn);">cd</code> コマンドでファイルのあるフォルダに移動<br/>
+            ② <code style="color:var(--warn);">python3 -m http.server 8000</code> と入力してEnter<br/>
+            ③ ブラウザで <a href="http://localhost:8000" target="_blank" style="color:var(--accent-light);">http://localhost:8000</a> を開く<br/><br/>
+            ※ Pythonがない場合は <a href="https://www.python.org/downloads/" target="_blank" style="color:var(--accent-light);">こちら</a> からインストールしてください
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PHASE 1: Main Story Generation ===== -->
+  <div id="storyPhase1">
+    <div class="section-title">Phase 1：メインストーリー生成</div>
+    <div class="card">
+      <div class="input-group">
+        <label>テーマ・指示（例：「織田信長の本能寺の変をモチーフに6人用で作って」）</label>
+        <textarea id="userPrompt" placeholder="ここにテーマや指示を自由に入力してください。&#10;例：&#10;・戦国時代の武将たちが集まる宴会で毒殺事件が発生。6人用。&#10;・近未来のAI研究所で起きた殺人事件。研究者5人。&#10;・豪華客船の中で起きたダイヤモンド盗難事件。7人用。"></textarea>
+      </div>
+      <div class="input-group">
+        <label>キャラクター人数</label>
+        <input type="number" id="storyCharCount" min="3" max="12" value="6" />
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btnGenStory">メインストーリーを生成</button>
+      </div>
+      <div id="storyStatus1" class="status-msg"></div>
+    </div>
+
+    <!-- Output: Main Story -->
+    <div id="mainStoryOutput" style="display:none;">
+      <div class="section-title">生成結果：メインストーリー</div>
+      <div class="card">
+        <div class="output-box" id="mainStoryText"></div>
+        <div class="btn-group">
+          <button class="btn btn-sm" id="btnCopyStory">コピー</button>
+          <button class="btn btn-sm btn-primary" id="btnGoPhase2">Phase 2 へ進む（タイムラインタブへ）→</button>
+        </div>
+      </div>
+      <div class="hint">※ 次はタイムラインタブでタイムラインを作成し、人物CSVをコピーしてから Phase 3 に進んでください。</div>
+    </div>
+  </div>
+
+  <!-- ===== PHASE 3: HO / Cards / ED Generation ===== -->
+  <div id="storyPhase3" style="margin-top: 24px;">
+    <div class="section-title">Phase 3：HO・カード・ED生成</div>
+    <div class="card">
+      <div class="input-group">
+        <label>メインストーリー（Phase 1 の出力、自動入力済み or ペースト）</label>
+        <textarea id="inputMainStory" style="min-height: 150px;" placeholder="Phase 1 で生成したメインストーリーをここに貼り付けてください"></textarea>
+      </div>
+      <div class="input-group">
+        <label>タイムラインCSV（タイムラインタブの「人物CSVコピー」で取得したものをペースト）</label>
+        <textarea id="inputTimeline" style="min-height: 100px;" placeholder="タイムラインタブで生成した人物CSVをここに貼り付けてください&#10;（人物CSVコピーボタンで取得できます）"></textarea>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btnGenHO">HO・カード・EDを生成</button>
+      </div>
+      <div id="storyStatus3" class="status-msg"></div>
+    </div>
+
+    <!-- Output: Character Tabs -->
+    <div id="hoOutput" style="display:none; margin-top: 16px;">
+      <div class="section-title">生成結果：キャラクター別HO・カード・ED</div>
+      <div class="card" style="margin-bottom:12px; padding:16px;">
+        <div class="sub-title" style="margin-bottom:10px;">🎨 表紙AI画像の準備</div>
+
+        <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px;">
+          <div style="font-size:13px; font-weight:600; color:var(--accent-light); margin-bottom:8px;">手順（3ステップ）</div>
+          <div style="font-size:12px; color:var(--text); line-height:2;">
+            <strong>①</strong> <a href="https://gemini.google.com/" target="_blank" style="color:var(--accent-light);">Gemini</a> を開き、以下のようなプロンプトで画像を生成：<br>
+            <span style="color:var(--text-muted); font-size:11px; margin-left:20px;">あらすじ用：「暗い夜の洋館のイラストを生成して」</span><br>
+            <span style="color:var(--text-muted); font-size:11px; margin-left:20px;">キャラ用：「ミステリアスな人物のアニメ風ポートレートを生成して」</span><br>
+            <strong>②</strong> 生成された画像を右クリック→「画像を保存」でダウンロード<br>
+            <strong>③</strong> 下の欄にファイルを選択またはドラッグ＆ドロップ
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;">
+            <label style="font-size:12px; font-weight:600; color:var(--text);">あらすじ表紙画像：</label>
+            <input type="file" id="uploadCoverImg" accept="image/*" style="font-size:11px; width:100%; margin-top:4px;">
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label style="font-size:12px; font-weight:600; color:var(--text);">キャラ表紙画像（複数選択可・キャラ順）：</label>
+            <input type="file" id="uploadCharImgs" accept="image/*" multiple style="font-size:11px; width:100%; margin-top:4px;">
+          </div>
+        </div>
+
+        <div id="imageGenStatus" style="font-size:12px; color:var(--text-muted); margin-top:8px; min-height:18px;"></div>
+        <div id="imagePreviews" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
+
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer; font-size:11px; color:var(--text-muted);">API自動生成（Gemini画像生成APIの無料枠が有効な場合のみ）</summary>
+          <div style="margin-top:6px;">
+            <button class="btn btn-sm" id="btnPregenImages">🎨 API自動生成を試す</button>
+            <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">※ 現在Googleの無料枠が停止中(limit:0)のため動作しない可能性が高いです</span>
+          </div>
+        </details>
+      </div>
+      <div class="btn-group" style="margin-bottom:12px;">
+        <button class="btn btn-sm" id="btnPdfSummary">📄 あらすじPDF出力</button>
+        <button class="btn btn-sm" id="btnPdfAllHO">📄 全キャラHO一括PDF出力</button>
+        <button class="btn btn-sm" id="btnPdfCurrentHO">📄 表示中のキャラHOをPDF出力</button>
+        <button class="btn btn-sm" id="btnPdfEndings" style="border-color:rgba(255,107,107,0.5); color:var(--danger);">📄 GM用エンディング台本PDF</button>
+      </div>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="char-tabs" id="charTabs"></div>
+        <div id="charContents" style="padding: 20px;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ============================================================ -->
+<!--  TAB 2: タイムライン生成（元の機能）                             -->
+<!-- ============================================================ -->
+<div id="tab-timeline" class="tab-content">
+  <div style="max-width: 1400px; margin: 0 auto;">
+    <div class="section-title" style="margin-bottom: 16px;">タイムライン自動生成</div>
+
+    <div class="row">
+      <div class="card">
+        <strong style="color:var(--accent-light);">基本設定</strong>
+
+        <label>人数（固定6推奨）</label>
+        <input id="numPeople" type="number" min="2" max="12" value="6" />
+
+        <label>人物名（カンマ区切り / 空ならA,B,C…）</label>
+        <input id="peopleNames" class="w100" type="text" placeholder="例：医者,記者,執事,令嬢,画家,刑事" />
+
+        <label>スロット数（8時間×30分＝16）</label>
+        <input id="numSlots" type="number" min="4" max="48" value="16" />
+
+        <label>Slot名（カンマ区切り / 空なら0,1,2…）</label>
+        <input id="slotNames" class="w100" type="text" placeholder="例：10:00,10:30,11:00,11:30,…" />
+
+        <label>部屋数（指定：6）</label>
+        <input id="numRooms" type="number" min="2" max="12" value="6" />
+
+        <label>部屋名（カンマ区切り / 空ならRoom1..）</label>
+        <input id="roomNames" class="w100" type="text" placeholder="例：リビング,キッチン,書斎,庭,廊下,寝室" />
+
+        <label>同席最大人数（指定：3）</label>
+        <input id="maxRoomCap" type="number" min="1" max="12" value="3" />
+
+        <label>各人の最低ソロ数（指定：3）</label>
+        <input id="minSolo" type="number" min="0" max="48" value="3" />
+
+        <label>ソロ連続の最大（指定：2 / 3連続禁止）</label>
+        <input id="maxSoloRun" type="number" min="1" max="48" value="2" />
+
+        <div class="btns">
+          <button class="btn btn-primary btn-sm" id="btnGen">生成</button>
+          <button class="btn btn-sm" id="btnReroll">再生成</button>
+          <button class="btn btn-sm" id="btnCsvPeople">人物CSVコピー</button>
+          <button class="btn btn-sm" id="btnCsvRooms">部屋CSVコピー</button>
+        </div>
+
+        <div id="status" class="status-msg"></div>
+
+        <div class="hint" style="margin-top:10px;">
+          出力：
+          <span style="padding:1px 6px;border:1px solid var(--border);border-radius:999px;font-size:11px;">人物ビュー</span>
+          <span style="padding:1px 6px;border:1px solid var(--border);border-radius:999px;font-size:11px;">部屋ビュー</span>
+          <span style="padding:1px 6px;border:1px solid var(--border);border-radius:999px;font-size:11px;">同席者ビュー</span>
+        </div>
+      </div>
+
+      <div class="card" style="min-width: 520px; flex: 1;">
+        <strong style="color:var(--accent-light);">オプション制約（制約ビルダーUI）</strong>
+        <div class="tiny" style="margin-top:6px;">
+          ハード制約：守れないと生成失敗（avoid / allHands / fixed / roomBan / mustSolo / mustNotSolo）<br/>
+          ソフト制約：できるだけ叶える（prefer）
+        </div>
+
+        <div class="line" style="margin-top:10px;">
+          <select id="constraintType">
+            <option value="preferPair">同席しがち（ペア/重み）</option>
+            <option value="avoidPair">同席禁止（ペア）</option>
+            <option value="allHands">全員集合（slot→部屋）</option>
+            <option value="fixed">人物の部屋固定（人物+slot→部屋）</option>
+            <option value="roomBan">部屋使用禁止（slot→部屋）</option>
+            <option value="mustSolo">必ずソロ（人物+slot）</option>
+            <option value="mustNotSolo">必ず同席（人物+slot）</option>
+          </select>
+          <button class="btn btn-sm" id="btnShowEditor">入力欄を表示</button>
+          <button class="btn btn-sm" id="btnClearConstraints">全削除</button>
+        </div>
+
+        <div id="constraintEditor" style="margin-top:10px;"></div>
+
+        <div style="margin-top:12px;">
+          <strong style="font-size:13px; color:var(--accent-light);">追加済み制約</strong>
+          <div id="constraintList" style="margin-top:8px; font-size:12px;"></div>
+        </div>
+
+        <details style="margin-top:12px;">
+          <summary style="color:var(--text-muted);">上級者用：constraints.json（自動生成）</summary>
+          <div style="margin-top:8px;">
+            <textarea id="constraints"></textarea>
+            <div class="hint">ここは「表示用」。編集してもUIに完全同期はしない。</div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top: 16px;">
+      <div class="card" style="flex: 1; min-width: 520px;">
+        <strong style="color:var(--accent-light);">人物ビュー（人物×Slot：部屋名）</strong>
+        <div id="peopleView" class="out" style="margin-top: 8px;"></div>
+      </div>
+      <div class="card" style="flex: 1; min-width: 520px;">
+        <strong style="color:var(--accent-light);">部屋ビュー（部屋×Slot：誰がいるか）</strong>
+        <div id="roomsView" class="out" style="margin-top: 8px;"></div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top: 16px;">
+      <div class="card" style="flex: 1; min-width: 720px;">
+        <strong style="color:var(--accent-light);">同席者ビュー（人物×Slot：その場にいた人）</strong>
+        <div class="tiny muted" style="margin-top:6px;">
+          例：「A, B, D」＝そのSlotで同じ部屋にいた人物（自分含む）
+        </div>
+        <div id="coView" class="out" style="margin-top: 8px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!--  TAB 3: プレイ盤面                                             -->
+<!-- ============================================================ -->
+<div id="tab-play" class="tab-content">
+  <div style="max-width: 1400px; margin: 0 auto;">
+    <div class="section-title" style="margin-bottom: 16px;">プレイ盤面</div>
+
+    <!-- データ未読み込み時の案内 -->
+    <div id="playEmpty" class="card" style="text-align:center; padding:40px;">
+      <div style="font-size:14px; color:var(--text-muted); margin-bottom:16px;">
+        Phase 3 でHO・カードを生成すると自動的にここに盤面が構築されます。<br>
+        または、以前生成したJSONデータを貼り付けて盤面を復元できます。
+      </div>
+      <details style="text-align:left;">
+        <summary style="cursor:pointer; color:var(--accent-light); font-weight:600; font-size:13px;">JSONデータを貼り付けて盤面を構築</summary>
+        <div style="margin-top:10px;">
+          <textarea id="playJsonInput" placeholder="Phase 3 で生成されたJSONデータをここに貼り付けてください" style="min-height:120px;"></textarea>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" id="btnLoadPlayJson">盤面を構築</button>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- プレイ盤面本体 -->
+    <div id="playBoard" style="display:none;">
+
+      <!-- タイマーパネル -->
+      <div class="timer-panel">
+        <div class="timer-phases">
+          <div class="timer-phase active" id="tp-0">① 前半議論</div>
+          <div class="timer-phase" id="tp-1">② 休憩</div>
+          <div class="timer-phase" id="tp-2">③ 後半議論</div>
+          <div class="timer-phase" id="tp-3">④ 休憩</div>
+          <div class="timer-phase" id="tp-4">⑤ 最終議論</div>
+          <div class="timer-phase" id="tp-5">⑥ 投票</div>
+        </div>
+
+        <!-- フェーズ時間設定 -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:12px;">
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">前半議論<input type="number" id="phaseMin0" value="15" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">休憩<input type="number" id="phaseMin1" value="3" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">後半議論<input type="number" id="phaseMin2" value="15" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">休憩<input type="number" id="phaseMin3" value="3" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">最終議論<input type="number" id="phaseMin4" value="5" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+          <label style="font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:3px;">投票<input type="number" id="phaseMin5" value="3" min="1" max="99" style="width:48px; padding:2px 4px; font-size:12px; text-align:center;">分</label>
+        </div>
+
+        <div class="timer-phase-label" id="timerPhaseLabel">① 前半議論フェイズ</div>
+        <div class="timer-display">
+          <div class="timer-clock" id="timerClock">15:00</div>
+        </div>
+        <div class="timer-controls">
+          <button class="btn btn-primary btn-sm" id="btnTimerStart">▶ スタート</button>
+          <button class="btn btn-sm" id="btnTimerPause">⏸ 一時停止</button>
+          <button class="btn btn-sm" id="btnTimerReset">↻ リセット</button>
+          <button class="btn btn-sm" id="btnTimerNext">次のフェイズへ →</button>
+        </div>
+        <div class="timer-info">
+          各フェーズの時間は上の入力欄で自由に変更できます（リセット後に反映）
+        </div>
+      </div>
+
+      <!-- 共通証拠カードエリア -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="sub-title" style="margin-bottom:12px;">
+          共通証拠カード
+          <span class="badge" id="playCommonCount">0枚</span>
+          <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">クリックでめくる</span>
+        </div>
+        <div class="play-card-grid" id="playCommonCards"></div>
+      </div>
+
+      <!-- キャラ別エリア -->
+      <div class="section-title" style="margin-top:24px;">キャラクター別・個人証拠カード</div>
+      <div id="playCharSections"></div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================================================================
+//  殺人方法ランダム選択
+// ===================================================================
+var MURDER_METHODS = [
+  '刃物による刺殺', '鈍器による撲殺', '絞殺（ロープ・ネクタイなど）', '銃殺',
+  '毒殺（飲食物に混入）', '溺死', '焼死（放火）', '遅効性毒による時間差殺害',
+  '密室内での一酸化炭素中毒', 'アレルギーを利用した殺害', '医療知識を利用した薬剤過剰投与',
+  '自殺に見せかけた偽装殺人', '事故に見せかけた転落死', '機械装置・タイマー装置による遠隔殺害',
+  '毒ガス発生装置', '停電中の犯行', '首吊り偽装', '記憶操作・催眠設定（SF寄り）',
+  'ウイルス兵器', 'AI暴走による殺害'
+];
+
+function getRandomMurderMethod() {
+  return MURDER_METHODS[Math.floor(Math.random() * MURDER_METHODS.length)];
+}
+
+// ===================================================================
+//  PDF出力機能（印刷ダイアログ → PDF保存 方式）
+// ===================================================================
+// PDFウィンドウを先に開く（ボタンクリック直後に呼ぶこと＝ポップアップブロック回避）
+function openPdfWindow(title) {
+  var win = window.open('', '_blank');
+  if (!win) { alert('ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください。'); return null; }
+  var doc = win.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + escHtml(title) + '</title>');
+  doc.write('<style>');
+  doc.write('body { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; color: #222; margin: 20mm; line-height: 1.8; font-size: 11pt; }');
+  doc.write('.cover-page { position:relative; width:calc(100% + 40mm); height:100vh; margin:-20mm -20mm 0 -20mm; padding:0; overflow:hidden; page-break-after:always; page-break-inside:avoid; display:flex; flex-direction:column; }');
+  doc.write('.cover-page img { width:100%; flex:1 1 0; object-fit:cover; min-height:0; display:block; }');
+  doc.write('.cover-text { flex:0 0 auto; padding:14px 20px; text-align:center; background:#fff; }');
+  doc.write('.cover-title { font-size:22pt; font-weight:900; color:#000; letter-spacing:2px; }');
+  doc.write('.cover-subtitle { font-size:11pt; color:#333; margin-top:4px; }');
+  doc.write('.cover-footer { font-size:8pt; color:#999; margin-top:6px; }');
+  doc.write('h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 4px; margin-bottom: 12px; }');
+  doc.write('h2 { font-size: 14pt; color: #444; margin-top: 16px; margin-bottom: 6px; }');
+  doc.write('h3 { font-size: 12pt; color: #555; margin-top: 12px; margin-bottom: 4px; }');
+  doc.write('.objective { margin: 2px 0; padding: 4px 8px; background: #f5f5f5; border-radius: 4px; }');
+  doc.write('.objective .pts { font-weight: bold; color: #6c5ce7; }');
+  doc.write('.note { font-size: 9pt; color: #888; margin-top: 2px; }');
+  doc.write('.timeline-line { margin: 2px 0; }');
+  doc.write('.card-box { border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }');
+  doc.write('.card-title { font-weight: bold; font-size: 10pt; }');
+  doc.write('.card-body { font-size: 9pt; color: #555; }');
+  doc.write('.ending-box { border: 1px solid #aaa; border-radius: 6px; padding: 8px 12px; margin: 6px 0; }');
+  doc.write('.page-break { page-break-before: always; }');
+  doc.write('@media print { body { margin: 15mm; } .cover-page { width:calc(100% + 30mm); height:100vh; margin:-15mm -15mm 0 -15mm; } #printBanner { display: none !important; } }');
+  doc.write('</style></head><body>');
+  doc.write('<div id="loading" style="text-align:center;padding:60px;color:#888;font-size:16pt;">🎨 表紙イラストをAI生成中…<br><span style="font-size:11pt;">しばらくお待ちください</span></div>');
+  doc.write('</body></html>');
+  doc.close();
+  return win;
+}
+
+// PDFウィンドウにコンテンツを書き込んで完成させる
+function finishPdfWindow(win, htmlContent) {
+  if (!win) return;
+  var doc = win.document;
+  doc.body.innerHTML = '';
+
+  var container = doc.createElement('div');
+  container.innerHTML = htmlContent;
+  doc.body.appendChild(container);
+
+  var banner = doc.createElement('div');
+  banner.id = 'printBanner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#2d8a4e;color:#fff;text-align:center;padding:12px;font-size:14px;z-index:9999;';
+  banner.innerHTML = '✅ PDF出力準備完了 <button onclick="window.print()" style="margin-left:12px;padding:6px 16px;border:none;border-radius:6px;background:#fff;color:#2d8a4e;font-weight:bold;cursor:pointer;font-size:14px;">🖨 印刷 / PDF保存</button>';
+  doc.body.insertBefore(banner, doc.body.firstChild);
+}
+
+// ===================================================================
+//  AI画像生成（Gemini gemini-2.5-flash-image）＋キャッシュ管理
+// ===================================================================
+var imageCache = {
+  cover: null,     // あらすじ表紙用
+  chars: {}        // キャラ名 → dataUrl
+};
+
+async function generateImageBase64(prompt, statusEl) {
+  var apiKey = getApiKey();
+  if (!apiKey) { console.log('画像生成: APIキーなし'); return null; }
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + encodeURIComponent(apiKey);
+
+  var maxRetries = 2;
+  for (var attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      var waitSec = attempt === 1 ? 30 : 60;
+      console.log('画像生成: ' + waitSec + '秒待機してリトライ');
+      if (statusEl) statusEl.textContent = '⏳ レート制限中… ' + waitSec + '秒後にリトライ (' + attempt + '/' + maxRetries + ')';
+      await new Promise(function(r){ setTimeout(r, waitSec * 1000); });
+    }
+    try {
+      if (statusEl) statusEl.textContent = '🎨 画像生成中…';
+      var res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+        })
+      });
+      if (res.status === 429) {
+        console.log('画像生成: 429 attempt=' + (attempt+1));
+        continue;
+      }
+      if (!res.ok) { console.log('画像生成: HTTP ' + res.status); return null; }
+      var data = await res.json();
+      var parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      if (!parts) { console.log('画像生成: partsなし'); return null; }
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i].inlineData && parts[i].inlineData.data) {
+          var mime = parts[i].inlineData.mimeType || 'image/png';
+          var dataUrl = 'data:' + mime + ';base64,' + parts[i].inlineData.data;
+          console.log('画像生成成功 (length: ' + dataUrl.length + ')');
+          return dataUrl;
+        }
+      }
+      return null;
+    } catch(e) {
+      console.log('画像生成エラー:', e.message);
+      return null;
+    }
+  }
+  console.log('画像生成: 全リトライ失敗');
+  return null;
+}
+
+// 全表紙画像をプリ生成する関数
+async function pregenerateAllImages() {
+  var statusEl = document.getElementById('imageGenStatus');
+  if (!statusEl) return;
+  var btn = document.getElementById('btnPregenImages');
+  if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
+
+  var total = 1; // 表紙
+  var chars = lastGeneratedData ? (lastGeneratedData.characters || []) : [];
+  total += chars.length;
+  var done = 0;
+
+  // 表紙
+  statusEl.textContent = '🎨 あらすじ表紙を生成中… (' + (++done) + '/' + total + ')';
+  var coverImg = await generateImageBase64('Generate an illustration for a murder mystery book cover. Dark, mysterious atmosphere, old building at night, shadows, moonlight, cinematic. No text in the image.', statusEl);
+  if (coverImg) {
+    imageCache.cover = coverImg;
+    statusEl.textContent = '✅ あらすじ表紙 完了 (' + done + '/' + total + ')';
+  } else {
+    statusEl.textContent = '❌ あらすじ表紙 失敗（429の場合は時間を置いて再試行）(' + done + '/' + total + ')';
+  }
+
+  // 各キャラ
+  for (var ci = 0; ci < chars.length; ci++) {
+    statusEl.textContent = '🎨 ' + chars[ci].name + ' の表紙を生成中… (' + (++done) + '/' + total + ')';
+    // キャラ間に15秒の間隔を空けてレート制限を回避
+    if (ci > 0 || coverImg) {
+      statusEl.textContent += ' (15秒待機中…)';
+      await new Promise(function(r){ setTimeout(r, 15000); });
+    }
+    var charImg = await generateImageBase64('Generate an anime-style character portrait for a murder mystery game. Mysterious person, dramatic lighting, dark atmosphere, upper body portrait. No text in the image.', statusEl);
+    if (charImg) {
+      imageCache.chars[chars[ci].name] = charImg;
+      statusEl.textContent = '✅ ' + chars[ci].name + ' 完了 (' + done + '/' + total + ')';
+    } else {
+      statusEl.textContent = '❌ ' + chars[ci].name + ' 失敗 (' + done + '/' + total + ')';
+      // 失敗したら残りは後で再試行
+      break;
+    }
+  }
+
+  var successCount = (imageCache.cover ? 1 : 0) + Object.keys(imageCache.chars).length;
+  statusEl.textContent = '完了: ' + successCount + '/' + total + '枚の画像を生成しました' + (successCount < total ? '（429エラーの場合は方法2で手動アップロードしてください）' : ' ✅');
+  if (btn) { btn.disabled = false; btn.textContent = '🎨 表紙画像を自動生成（再試行）'; }
+  updateImagePreviews();
+}
+
+function extractTitle(storyText) {
+  var match = storyText.match(/■\s*タイトル[：:\s]*\n?([^\n■]+)/);
+  if (match) return match[1].trim();
+  var lines = storyText.split('\n');
+  for (var i = 0; i < Math.min(lines.length, 5); i++) {
+    var line = lines[i].trim();
+    if (line.length > 0 && line.length < 50 && !line.startsWith('■')) return line;
+  }
+  return 'マーダーミステリー';
+}
+
+function buildCoverHtml(title, dataUrl, subtitle) {
+  if (dataUrl) {
+    var html = '<div class="cover-page">';
+    html += '<img src="' + dataUrl + '" />';
+    html += '<div class="cover-text">';
+    html += '<div class="cover-title">' + escHtml(title) + '</div>';
+    if (subtitle) html += '<div class="cover-subtitle">' + escHtml(subtitle) + '</div>';
+    html += '<div class="cover-footer">MURDER MYSTERY SCENARIO</div>';
+    html += '</div></div>';
+    return html;
+  } else {
+    return '<div class="cover-page" style="background:#1a1a2e;justify-content:center;align-items:center;"><div style="text-align:center;color:#c00;font-size:12pt;padding:40px;">※ 表紙画像が未生成です。<br>「🎨 表紙画像を生成」または手動アップロードで画像をセットしてください。</div></div>';
+  }
+}
+
+function buildCharCoverHtml(chName, scenarioTitle, dataUrl) {
+  if (dataUrl) {
+    var html = '<div class="cover-page">';
+    html += '<img src="' + dataUrl + '" />';
+    html += '<div class="cover-text">';
+    if (scenarioTitle) html += '<div class="cover-subtitle">' + escHtml(scenarioTitle) + '</div>';
+    html += '<div class="cover-title">' + escHtml(chName) + '</div>';
+    html += '<div class="cover-footer">HANDOUT — CONFIDENTIAL</div>';
+    html += '</div></div>';
+    return html;
+  } else {
+    return '<div class="cover-page" style="background:#1a1a2e;justify-content:center;align-items:center;"><div style="text-align:center;color:#c00;font-size:11pt;padding:30px;">※ キャラ画像が未生成です。</div></div>';
+  }
+}
+
+// PDF出力関数（キャッシュ済み画像を使うだけなので即座に完了）
+function generateSummaryPdf() {
+  var storyText = document.getElementById('mainStoryText').textContent;
+  if (!storyText) { alert('メインストーリーがまだ生成されていません。'); return; }
+  var title = extractTitle(storyText);
+  var win = openPdfWindow('あらすじ - ' + title);
+  if (!win) return;
+  var html = buildCoverHtml(title, imageCache.cover, 'マーダーミステリー シナリオ');
+  html += '<h1>' + escHtml(title) + '</h1>';
+  html += '<div style="white-space:pre-wrap;">' + escHtml(storyText) + '</div>';
+  finishPdfWindow(win, html);
+}
+
+function generateAllHOPdf() {
+  if (!lastGeneratedData) { alert('HO・カードがまだ生成されていません。'); return; }
+  var chars = lastGeneratedData.characters || [];
+  var storyText = document.getElementById('mainStoryText').textContent || '';
+  var title = extractTitle(storyText);
+  var win = openPdfWindow('全キャラHO');
+  if (!win) return;
+  var html = '';
+  for (var ci = 0; ci < chars.length; ci++) {
+    var charImg = imageCache.chars[chars[ci].name] || null;
+    html += buildCharCoverHtml(chars[ci].name, title, charImg);
+    html += buildCharHOHtml(chars[ci]);
+    if (ci < chars.length - 1) html += '<div class="page-break"></div>';
+  }
+  finishPdfWindow(win, html);
+}
+
+function generateCurrentHOPdf() {
+  if (!lastGeneratedData) { alert('HO・カードがまだ生成されていません。'); return; }
+  var activeTab = document.querySelector('.char-tab.active');
+  if (!activeTab) { alert('キャラクタータブを選択してください。'); return; }
+  var idx = Array.from(document.querySelectorAll('.char-tab')).indexOf(activeTab) - 1;
+  if (idx < 0) { alert('キャラクタータブを選択してください（共通カードではなく）。'); return; }
+  var ch = lastGeneratedData.characters[idx];
+  if (!ch) { alert('キャラクターが見つかりません。'); return; }
+  var storyText = document.getElementById('mainStoryText').textContent || '';
+  var title = extractTitle(storyText);
+  var win = openPdfWindow(ch.name + ' HO');
+  if (!win) return;
+  var charImg = imageCache.chars[ch.name] || null;
+  var html = buildCharCoverHtml(ch.name, title, charImg);
+  html += buildCharHOHtml(ch);
+  finishPdfWindow(win, html);
+}
+
+function buildCharHOHtml(ch) {
+  var ho = ch.ho || {};
+  var cards = (ch.cards && ch.cards.personal) || [];
+  var html = '<h1>' + escHtml(ch.name) + ' ハンドアウト</h1>';
+
+  // 目的
+  var objectives = ho.objectives || [];
+  if (objectives.length > 0) {
+    html += '<h2>目的</h2>';
+    objectives.forEach(function(obj) {
+      html += '<div class="objective">・' + escHtml(obj.goal || '') + ' … <span class="pts">' + (obj.points || 0) + '点</span></div>';
+    });
+    if (ho.objectives_note) {
+      html += '<div class="note">※ ' + escHtml(ho.objectives_note) + '</div>';
+    }
+  }
+
+  // 概要
+  html += '<h2>概要</h2>';
+  html += '<div>' + escHtml(ho.summary || '') + '</div>';
+
+  // あなたの知っていること
+  html += '<h2>あなたの知っていること</h2>';
+  html += '<div>' + escHtml(ho.known_info || '') + '</div>';
+
+  // タイムライン
+  html += '<h2>タイムライン</h2>';
+  var timeline = (ho.timeline || '').replace(/\\n/g, '\n');
+  var tlLines = timeline.split('\n');
+  tlLines.forEach(function(line) {
+    if (line.trim()) html += '<div class="timeline-line">' + escHtml(line.trim()) + '</div>';
+  });
+
+  // 個人証拠カード
+  if (cards.length > 0) {
+    html += '<h2>個人証拠カード（' + cards.length + '枚）</h2>';
+    cards.forEach(function(card) {
+      html += '<div class="card-box"><div class="card-title">' + escHtml(card.title || '') + '</div>';
+      html += '<div class="card-body">' + escHtml(card.content || '') + '</div></div>';
+    });
+  }
+
+  return html;
+}
+
+// GM用エンディングPDF出力
+function generateEndingsPdf() {
+  if (!lastGeneratedData) { alert('HO・カードがまだ生成されていません。'); return; }
+  var endings = lastGeneratedData.endings;
+  if (!endings) { alert('エンディングデータが見つかりません。再生成してください。'); return; }
+
+  var html = '<h1>GM用 エンディング台本</h1>';
+  html += '<div class="note" style="margin-bottom:20px;">※ このPDFはGM（ゲームマスター）専用です。プレイヤーには見せないでください。</div>';
+
+  // TRUE END
+  var te = endings.true_end || {};
+  html += '<h2 style="color:#2d8a4e; border-bottom:2px solid #2d8a4e; padding-bottom:4px;">' + escHtml(te.title || 'TRUE END：真相解明') + '</h2>';
+  html += '<div style="margin-bottom:16px;">';
+  html += '<h3>ナレーション（読み上げ）</h3>';
+  html += '<div style="background:#f0f8f0; padding:12px; border-radius:6px; border-left:4px solid #2d8a4e; white-space:pre-wrap;">' + escHtml(te.narration || '') + '</div>';
+  var teChars = te.characters || [];
+  if (teChars.length > 0) {
+    html += '<h3>各キャラクターの後日談</h3>';
+    teChars.forEach(function(c) {
+      html += '<div class="ending-box"><strong>' + escHtml(c.name || '') + '</strong><br>' + escHtml(c.epilogue || '') + '</div>';
+    });
+  }
+  html += '</div>';
+
+  html += '<div class="page-break"></div>';
+
+  // BAD END
+  var be = endings.bad_end || {};
+  html += '<h2 style="color:#c0392b; border-bottom:2px solid #c0392b; padding-bottom:4px;">' + escHtml(be.title || 'BAD END：真相は闇の中') + '</h2>';
+  html += '<div style="margin-bottom:16px;">';
+  html += '<h3>ナレーション（読み上げ）</h3>';
+  html += '<div style="background:#fdf0f0; padding:12px; border-radius:6px; border-left:4px solid #c0392b; white-space:pre-wrap;">' + escHtml(be.narration || '') + '</div>';
+  var beChars = be.characters || [];
+  if (beChars.length > 0) {
+    html += '<h3>各キャラクターの後日談</h3>';
+    beChars.forEach(function(c) {
+      html += '<div class="ending-box"><strong>' + escHtml(c.name || '') + '</strong><br>' + escHtml(c.epilogue || '') + '</div>';
+    });
+  }
+  html += '</div>';
+
+  var win = openPdfWindow('GM用エンディング台本');
+  if (!win) return;
+  finishPdfWindow(win, html);
+}
+// ===================================================================
+//  Gemini API呼び出し関数（SDK不使用・直接fetch）
+// ===================================================================
+async function callGemini(apiKey, systemText, userText, jsonMode, _statusElId) {
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+  var body = {
+    system_instruction: { parts: [{ text: systemText }] },
+    contents: [{ role: "user", parts: [{ text: userText }] }],
+    generationConfig: { maxOutputTokens: 65536 }
+  };
+  if (jsonMode) body.generationConfig.responseMimeType = "application/json";
+
+  var maxRetries = 3;
+  var waitSeconds = [5, 15, 30]; // リトライごとの待ち秒数
+
+  for (var attempt = 0; attempt <= maxRetries; attempt++) {
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    // 503（高負荷）または429（レート制限）の場合はリトライ
+    if ((res.status === 503 || res.status === 429) && attempt < maxRetries) {
+      var wait = waitSeconds[attempt] || 30;
+      if (_statusElId) {
+        showStatus(_statusElId, 'サーバー混雑中（' + res.status + '）… ' + wait + '秒後に自動リトライします（' + (attempt + 1) + '/' + maxRetries + '回目）', 'info');
+      }
+      await new Promise(function(r){ setTimeout(r, wait * 1000); });
+      continue;
+    }
+
+    if (!res.ok) {
+      var errText = await res.text();
+      throw new Error('API応答エラー (' + res.status + '): ' + errText.substring(0, 300));
+    }
+
+    var data = await res.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+    var text = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts)
+      ? data.candidates[0].content.parts.map(function(p){ return p.text || ''; }).join('')
+      : '';
+    if (!text) throw new Error('レスポンスが空でした。');
+    return text;
+  }
+
+  throw new Error('サーバーが混雑しています。時間をおいて再度お試しください。');
+}
+
+// ===================================================================
+//  Main Tab Switching
+// ===================================================================
+function switchMainTab(tab) {
+  var tabs = ['story', 'timeline', 'play'];
+  document.querySelectorAll('.top-nav .tab-btn').forEach(function(b, i) {
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  tabs.forEach(function(t) {
+    var el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+}
+
+async function goToPhase2() {
+  document.getElementById('phase1').classList.add('done');
+  document.getElementById('phase1').classList.remove('active');
+  document.getElementById('phase2').classList.add('active');
+  switchMainTab('timeline');
+
+  // Phase 1 で部屋名が設定されていない場合のみ、Gemini APIで自動生成を試みる
+  var currentRooms = document.getElementById('roomNames').value.trim();
+  if (currentRooms) return; // 既に設定済みならスキップ
+
+  var apiKey = getApiKey();
+  var storyText = document.getElementById('mainStoryText').textContent || '';
+  if (apiKey && storyText) {
+    try {
+      var roomPrompt = 'あなたはマーダーミステリーの舞台設計者です。以下のストーリーの舞台にふさわしい部屋・場所の名前を6つ考えてください。\n' +
+        'カンマ区切りで部屋名だけを1行で出力してください。それ以外のテキストは不要です。\n' +
+        '例：甲板,キッチン,大ホール,客室廊下,機関室,船長室\n\n' +
+        'ストーリー：\n' + storyText.substring(0, 500);
+      var roomResult = await callGemini(apiKey, '部屋名だけをカンマ区切りで1行で出力してください。説明は不要です。', roomPrompt, false, null);
+      var rooms = roomResult.trim().split(/[,，、\n]/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0 && s.length < 20; });
+      if (rooms.length >= 3) {
+        document.getElementById('roomNames').value = rooms.slice(0, 6).join(',');
+        document.getElementById('numRooms').value = Math.min(rooms.length, 6);
+        document.getElementById('numRooms').dispatchEvent(new Event('change'));
+      }
+    } catch(e) {
+      console.log('部屋名自動生成失敗:', e.message);
+    }
+  }
+}
+
+// ===================================================================
+//  Utility
+// ===================================================================
+function copyText(elId) {
+  const text = document.getElementById(elId).textContent;
+  fallbackCopy(text).then(() => alert('コピーしました！'));
+}
+
+// クリップボードコピー（navigator.clipboard が使えない環境にも対応）
+function fallbackCopy(text) {
+  // まず navigator.clipboard を試す
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => execCommandCopy(text));
+  }
+  return execCommandCopy(text);
+}
+
+function execCommandCopy(text) {
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      const ok = document.execCommand('copy');
+      if (ok) resolve(); else reject(new Error('execCommand failed'));
+    } catch (e) {
+      reject(e);
+    } finally {
+      document.body.removeChild(ta);
+    }
+  });
+}
+
+// どうしてもコピーできない場合、テキストエリアをポップアップ表示して手動コピーしてもらう
+function showCsvPopup(text, label) {
+  // 既存のポップアップがあれば消す
+  const old = document.getElementById('csvPopupOverlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'csvPopupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:90%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;gap:12px;';
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-weight:700;color:var(--accent-light);font-size:14px;';
+  title.textContent = label + '（Ctrl+A → Ctrl+C で手動コピーしてください）';
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'width:100%;height:300px;font-family:monospace;font-size:11px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;resize:vertical;';
+  ta.readOnly = true;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'btn btn-sm';
+  closeBtn.textContent = '閉じる';
+  closeBtn.onclick = () => overlay.remove();
+
+  box.appendChild(title);
+  box.appendChild(ta);
+  box.appendChild(closeBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // 自動選択
+  ta.focus();
+  ta.select();
+}
+
+function showStatus(elId, msg, type) {
+  const el = document.getElementById(elId);
+  el.className = 'status-msg ' + type;
+  el.textContent = msg;
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// 改行(\n)を<br>に変換し、時間表記の前にも改行を挿入する版
+function escHtmlBr(str) {
+  if (!str) return '';
+  // まずHTMLエスケープ
+  var escaped = escHtml(str);
+  // \nを<br>に変換
+  escaped = escaped.replace(/\n/g, '<br>');
+
+  // 時間表記パターンの前に改行を挿入
+  // 対応パターン: "20:00", "0:30", "0時頃", "20時頃", "10時", "slot0:" 等
+  // 句読点(。)の直後に時間表記が来る場合に改行
+  escaped = escaped.replace(/。\s*(\d{1,2}[:時])/g, '。<br>$1');
+  // スペース区切りで時間表記が来る場合に改行
+  escaped = escaped.replace(/\s(\d{1,2}:\d{2})/g, '<br>$1');
+  escaped = escaped.replace(/\s(\d{1,2}時)/g, '<br>$1');
+
+  // 連続する<br>を1つにまとめる
+  escaped = escaped.replace(/(<br>\s*)+/g, '<br>');
+  // 先頭の<br>を除去
+  escaped = escaped.replace(/^(<br>)+/, '');
+  return escaped;
+}
+
+// ===================================================================
+//  タイムラインCSVから同室情報を解析する関数
+// ===================================================================
+function parseCoPresence(csvText, charNames) {
+  var lines = csvText.split('\n').filter(function(l){ return l.trim(); });
+  if (lines.length < 2) return '（CSVの解析に失敗しました）';
+
+  // ヘッダーからslot名を抽出
+  var headerCells = parseCSVLine(lines[0]);
+  var slotNames = [];
+  for (var h = 1; h < headerCells.length; h++) {
+    // "slot0:10:00" → "10:00" を抽出
+    var parts = headerCells[h].split(':');
+    if (parts.length >= 3) {
+      slotNames.push(parts.slice(1).join(':'));
+    } else if (parts.length === 2) {
+      slotNames.push(parts[1]);
+    } else {
+      slotNames.push(headerCells[h]);
+    }
+  }
+
+  // 各キャラの各slotの部屋を取得
+  var charRooms = {}; // charRooms[キャラ名] = [部屋名, 部屋名, ...]
+  for (var r = 1; r < lines.length; r++) {
+    var cells = parseCSVLine(lines[r]);
+    var name = cells[0];
+    charRooms[name] = [];
+    for (var c = 1; c < cells.length; c++) {
+      charRooms[name].push(cells[c]);
+    }
+  }
+
+  // 各キャラごとに「各時間帯にどの部屋にいて、誰と一緒だったか」をまとめる
+  var result = '';
+  var allNames = Object.keys(charRooms);
+
+  for (var ni = 0; ni < allNames.length; ni++) {
+    var cname = allNames[ni];
+    var rooms = charRooms[cname] || [];
+    result += '■ ' + cname + ' のタイムライン詳細:\n';
+    for (var s = 0; s < slotNames.length && s < rooms.length; s++) {
+      var room = rooms[s];
+      var sameRoom = [];
+      for (var oi = 0; oi < allNames.length; oi++) {
+        if (allNames[oi] === cname) continue;
+        if (charRooms[allNames[oi]] && charRooms[allNames[oi]][s] === room) {
+          sameRoom.push(allNames[oi]);
+        }
+      }
+      if (sameRoom.length === 0) {
+        result += '  ' + slotNames[s] + ' ' + room + '（一人）\n';
+      } else {
+        result += '  ' + slotNames[s] + ' ' + room + '（同室: ' + sameRoom.join(', ') + '）\n';
+      }
+    }
+    result += '\n';
+  }
+
+  return result;
+}
+
+// CSV1行をパースする補助関数（ダブルクォート対応）
+function parseCSVLine(line) {
+  var result = [];
+  var current = '';
+  var inQuote = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (inQuote) {
+      if (ch === '"' && i + 1 < line.length && line[i+1] === '"') {
+        current += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuote = false;
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuote = true;
+      } else if (ch === ',') {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// ===================================================================
+//  ストーリーから部屋名・キャラ名を抽出してタイムラインタブに反映
+// ===================================================================
+function extractAndSetRoomNames(storyText) {
+  // 「■ 舞台の部屋一覧」セクション以降のテキストを取得
+  var sectionMatch = storyText.match(/■\s*舞台の部屋一覧[^■]*/);
+  if (!sectionMatch) return;
+
+  var sectionText = sectionMatch[0];
+  // セクション内の全行を調べ、カンマ区切りで3つ以上の短い語が並んでいる行を探す
+  var lines = sectionText.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    // ヘッダー行や空行をスキップ
+    if (!line || line.startsWith('■') || line.startsWith('例') || line.startsWith('形式')) continue;
+    // カンマ区切りを試す
+    var rooms = line.split(/[,，、]/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0 && s.length < 20; });
+    if (rooms.length >= 3) {
+      document.getElementById('roomNames').value = rooms.join(',');
+      document.getElementById('numRooms').value = rooms.length;
+      document.getElementById('numRooms').dispatchEvent(new Event('change'));
+      return;
+    }
+  }
+}
+
+function extractAndSetCharNames(storyText) {
+  // 「■ キャラクター一覧」セクションからキャラ名を抽出
+  var charSection = storyText.match(/■\s*キャラクター一覧[^]*?(?=■|$)/);
+  if (!charSection) return;
+  var lines = charSection[0].split('\n');
+  var names = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    // 「- キャラ名：肩書き」 or 「- キャラ名:肩書き」パターン
+    var m = line.match(/^[-・]\s*(.+?)\s*[：:]/);
+    if (m) {
+      var name = m[1].trim();
+      // 数字だけ、長すぎるものは除外
+      if (name.length > 0 && name.length < 20) {
+        names.push(name);
+      }
+    }
+  }
+  if (names.length >= 2) {
+    document.getElementById('peopleNames').value = names.join(',');
+    document.getElementById('numPeople').value = names.length;
+    document.getElementById('numPeople').dispatchEvent(new Event('change'));
+  }
+}
+
+// ===================================================================
+//  Phase 1: Main Story Generation
+// ===================================================================
+function getApiKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) return null;
+  return key;
+}
+
+async function generateMainStory() {
+  const userPrompt = document.getElementById('userPrompt').value.trim();
+  const charCount = Number(document.getElementById('storyCharCount').value);
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    showStatus('storyStatus1', 'APIキーを入力してください。Google AI Studio で無料取得できます。', 'warn');
+    return;
+  }
+  if (!userPrompt) {
+    showStatus('storyStatus1', 'テーマ・指示を入力してください。', 'warn');
+    return;
+  }
+
+  const btn = document.getElementById('btnGenStory');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>生成中…';
+  var murderMethod = getRandomMurderMethod();
+  showStatus('storyStatus1', 'Gemini がメインストーリーを生成しています（殺害方法: ' + murderMethod + '）…', 'info');
+
+  const systemInstruction = `あなたはマーダーミステリー（マダミス）のシナリオライターです。
+ユーザーの指示に基づいて、マーダーミステリーのメインストーリーの骨格を作成してください。
+この段階では大枠だけを決めます。キャラクターの詳細なHO（ハンドアウト）やタイムラインは後の工程で作るので、ここでは出力しないでください。
+
+【殺害方法の指定】
+今回の事件における殺害方法は「${murderMethod}」とすること。この方法を前提にストーリーを組み立ててください。
+
+【タイトルのルール】
+- タイトルには殺害方法を直接的・間接的に含めないこと（「毒」「刺殺」「炎」「銃弾」等のワードは禁止）
+- 舞台や人間ドラマを連想させる、ミステリアスで魅力的なタイトルにすること
+- 良い例：「最後の晩餐会」「嘘つきたちの航海」「消えた招待状」
+- 悪い例：「毒殺の宴」「刃の行方」「炎に消えた真実」
+
+【出力フォーマット】以下の構成で日本語で出力してください：
+
+■ タイトル
+シナリオのタイトル
+
+■ あらすじ（プレイヤー全員に公開される導入文）
+事件の舞台、状況、なぜプレイヤーたちがここに集まったのかを描写。200-400文字程度。
+【あらすじのルール】
+- あらすじの中に死因・殺害方法を書かないこと（「毒物が投与された形跡」「刺し傷」「銃痕」等は禁止）
+- あらすじの中に犯人が誰かを示唆する記述を書かないこと
+- 「人が死んでいた」「遺体が発見された」程度の事実だけを書き、詳細な死因は伏せること
+- プレイヤーの興味を引く謎めいた導入にすること
+
+■ 真相（GM用）
+実際に何が起きたのかの真実。犯人は誰で、動機は何で、「${murderMethod}」をどのように実行したか。200-400文字程度。
+
+■ 殺害方法
+${murderMethod}
+
+■ キャラクター一覧（${charCount}人）
+以下の形式で簡潔に列挙してください：
+- キャラクター名：一言の肩書き（例：「織田信長：天下統一を目指す武将」）
+
+※ 各キャラの詳細な背景・秘密・人間関係はここでは不要です。名前と肩書きだけ出力してください。
+
+■ 舞台の部屋一覧
+この物語の舞台にふさわしい場所・部屋の名前を6つ、カンマ区切りで1行で出力してください。
+舞台の雰囲気に合った具体的な部屋名にすること。説明は不要、部屋名だけカンマ区切りで1行。
+例：甲板,キッチン,大ホール,客室廊下,機関室,船長室
+
+キャラクター人数: ${charCount}人
+バランスが取れた面白いシナリオの骨格を作成してください。`;
+
+  try {
+    var text = await callGemini(apiKey, systemInstruction, userPrompt + '\n\nキャラクター人数: ' + charCount + '人', false, 'storyStatus1');
+
+    document.getElementById('mainStoryText').textContent = text;
+    document.getElementById('mainStoryOutput').style.display = 'block';
+    document.getElementById('inputMainStory').value = text;
+
+    // キャラ名・部屋名を抽出してタイムラインタブに自動セット
+    extractAndSetCharNames(text);
+    extractAndSetRoomNames(text);
+
+    showStatus('storyStatus1', 'メインストーリーの生成が完了しました！\n（キャラ名・部屋名をタイムラインタブに自動セットしました）', 'ok');
+
+  } catch (err) {
+    var msg = err.message || String(err);
+    if (msg.indexOf('Failed to fetch') >= 0 || msg.indexOf('NetworkError') >= 0) {
+      msg = 'ネットワークエラー：APIに接続できませんでした。\n\nこのファイルを file:// で直接開いていませんか？\nローカルサーバー経由で開く必要があります。\n\n【簡単な方法】\n1. このHTMLファイルがあるフォルダでターミナル/コマンドプロンプトを開く\n2. 以下のどちらかを実行：\n   python -m http.server 8000\n   python3 -m http.server 8000\n3. ブラウザで http://localhost:8000 を開く\n4. ファイル名をクリックして開く';
+    }
+    showStatus('storyStatus1', 'エラー: ' + msg, 'warn');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'メインストーリーを生成';
+  }
+}
+
+// ===================================================================
+//  Phase 3: HO / Cards / ED Generation
+// ===================================================================
+async function generateHOCardsED() {
+  const mainStory = document.getElementById('inputMainStory').value.trim();
+  const timeline = document.getElementById('inputTimeline').value.trim();
+  const apiKey = getApiKey();
+
+  if (!apiKey) { showStatus('storyStatus3', 'APIキーを入力してください。', 'warn'); return; }
+  if (!mainStory) { showStatus('storyStatus3', 'メインストーリーを入力してください。', 'warn'); return; }
+  if (!timeline) { showStatus('storyStatus3', 'タイムラインCSVを入力してください。', 'warn'); return; }
+
+  const btn = document.getElementById('btnGenHO');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>生成中…';
+  showStatus('storyStatus3', 'Gemini がHO・カード・エンディングを生成しています。少々お待ちください…', 'info');
+
+  // Extract character names from CSV
+  const csvLines = timeline.split('\n').filter(l => l.trim());
+  const charNames = [];
+  for (let i = 1; i < csvLines.length; i++) {
+    const match = csvLines[i].match(/^"?([^",]+)"?/);
+    if (match) charNames.push(match[1]);
+  }
+
+  if (charNames.length < 2) {
+    showStatus('storyStatus3', 'タイムラインCSVからキャラクターを読み取れませんでした。フォーマットを確認してください。', 'warn');
+    btn.disabled = false;
+    btn.textContent = 'HO・カード・EDを生成';
+    return;
+  }
+
+  const charCount = charNames.length;
+
+  var systemInstruction = 'あなたはマーダーミステリーのシナリオライターです。\n' +
+'メインストーリーとタイムライン情報をもとに、各キャラクターのハンドアウト（HO）、証拠カード、エンディングを作成してください。\n\n' +
+'【最重要：タイムラインの書き方ルール】\n' +
+'入力にはタイムラインCSVと、それを解析した「同室情報」が含まれています。\n' +
+'HOの timeline を書く際、以下のルールを厳守してください：\n\n' +
+'■ 書式ルール\n' +
+'- 各時間帯を必ず「HH:00」や「HH:30」の24時間表記で始めること（例: 09:30, 14:00, 00:30）\n' +
+'- 時間表記の直後に半角スペース、その後に行動を書く\n' +
+'- 各時間帯は \\n で区切ること\n' +
+'- 一人称視点（「私は」「自分は」等は省略可）で簡潔に書く\n' +
+'- 良い例: "09:30 会場に到着。入口付近でカメラマンが女性客をじっと見ていた。\\n10:00 教会堂で神父の話を聞く。窓の外にA子が見えた。"\n\n' +
+'■ 内容ルール\n' +
+'- セリフは本当に重要な場面だけに限定すること（全時間帯に入れない。3-4個程度に絞る）\n' +
+'- セリフより「どこで・誰といて・何をしていたか・何を見たか」の事実情報を優先すること\n' +
+'- 同室の相手がいる場合、相手の存在や行動に必ず言及すること\n' +
+'  例: "14:00 大ホール。カメラマンが撮影をしており、隅では牧師が相談コーナーを開いていた。"\n' +
+'- AがBと会話した場合、B側にも必ず同じ会話への言及を入れること\n' +
+'- 「一人」の時間帯は一人でしていた行動を書く。他キャラとの会話は書かない\n' +
+'- 同じ部屋にいても必ず会話する必要はない。「〇〇がいた」「〇〇の姿を見かけた」で十分\n' +
+'- 各時間帯の記述は1-2文で簡潔にすること。冗長にしない\n\n' +
+'【JSON出力ルール】\n' +
+'- 出力は有効なJSON形式のみ。それ以外のテキストは一切禁止\n' +
+'- JSON文字列内のダブルクォートは \\" でエスケープすること\n' +
+'- JSON文字列内のセリフの「」はそのまま使ってOK\n' +
+'- JSON文字列内に改行を入れないこと（改行が必要なら \\n を使う）\n' +
+'- 各キャラに個人証拠カード4枚\n' +
+'- 共通証拠カードは' + (charCount * 2) + '枚（キャラ数×2）\n\n' +
+'【JSON構造】\n' +
+'{\n' +
+'  "characters": [\n' +
+'    {\n' +
+'      "name": "キャラ名",\n' +
+'      "ho": {\n' +
+'        "objectives": [\n' +
+'          {"goal": "目的の内容", "points": 2},\n' +
+'          {"goal": "目的の内容", "points": 3}\n' +
+'        ],\n' +
+'        "objectives_note": "投票により犯人として選ばれた場合は、目標の成否にかかわらず得点は0点となる",\n' +
+'        "summary": "概要。このキャラが誰で、何者で、なぜこの場にいるのか。メインストーリーとの関係性を含めて200-400文字で詳しく記述",\n' +
+'        "known_info": "あなたの知っていること。このキャラだけが知っている秘密、背景情報、他キャラとの関係、事件に関する手がかりなど。300-500文字で詳しく、物語調で記述",\n' +
+'        "timeline": "当日の行動。必ず各時間帯をHH:00やHH:30の24時間表記で始める。各時間帯は \\n で区切る。事実情報を優先し、セリフは重要場面のみ3-4個まで。例: 09:30 会場に到着。入口でカメラマンが女性客を見ていた。\\n10:00 教会堂で神父の話を聞く。"\n' +
+'      },\n' +
+'      "cards": {\n' +
+'        "personal": [\n' +
+'          {"id": "個人1", "title": "カード名", "content": "内容（80文字以内）"},\n' +
+'          {"id": "個人2", "title": "カード名", "content": "内容"},\n' +
+'          {"id": "個人3", "title": "カード名", "content": "内容"},\n' +
+'          {"id": "個人4", "title": "カード名", "content": "内容"}\n' +
+'        ]\n' +
+'      }\n' +
+'    }\n' +
+'  ],\n' +
+'  "common_cards": [\n' +
+'    {"id": "共通1", "title": "カード名", "content": "内容（80文字以内）"}\n' +
+'  ],\n' +
+'  "endings": {\n' +
+'    "true_end": {\n' +
+'      "title": "TRUE END：真相解明",\n' +
+'      "narration": "GM読み上げ用ナレーション。犯人が暴かれた場面を描写する。300-500文字。各キャラの反応やセリフを含める。",\n' +
+'      "characters": [\n' +
+'        {"name": "キャラ名", "epilogue": "そのキャラの後日談。セリフを含め100-200文字で。"}\n' +
+'      ]\n' +
+'    },\n' +
+'    "bad_end": {\n' +
+'      "title": "BAD END：真相は闇の中",\n' +
+'      "narration": "GM読み上げ用ナレーション。犯人が逃げおおせた場面を描写する。300-500文字。各キャラの反応やセリフを含める。",\n' +
+'      "characters": [\n' +
+'        {"name": "キャラ名", "epilogue": "そのキャラの後日談。セリフを含め100-200文字で。"}\n' +
+'      ]\n' +
+'    }\n' +
+'  }\n' +
+'}\n\n' +
+'【目的(objectives)の設計指針】\n' +
+'- 各キャラに2-4個の目的を設定\n' +
+'- 点数は1-3点で配分（合計5-8点程度）\n' +
+'- 犯人キャラの目的例: 「犯行がバレないようにする」「自分以外の人物に疑いを向ける」\n' +
+'- 探偵役の目的例: 「事件の犯人を見つけ出す」「被害者の秘密を解明する」\n' +
+'- 全キャラに「犯人を見つける」系の目的を1つは含める（犯人自身は除く）\n\n' +
+'【概要(summary)の設計指針】\n' +
+'- そのキャラが誰で、何者で、被害者や事件とどう関わっているかを200-400文字で記述\n' +
+'- プレイヤーが自分の役割を理解できる十分な情報量を確保\n\n' +
+'【あなたの知っていること(known_info)の設計指針】\n' +
+'- そのキャラだけが知っている事実、秘密、過去のエピソード、他キャラとの関係を詳しく記述\n' +
+'- メインストーリーの情報を活かし、300-500文字で物語調に記述\n' +
+'- 推理に役立つ手がかりを自然に織り込む\n\n' +
+'【エンディング(endings)の設計指針】\n' +
+'- GM（ゲームマスター）が読み上げる台本として記述する\n' +
+'- true_end: 犯人が正しく投票で選ばれた場合。犯人の動機が明かされ、各キャラがそれぞれの結末を迎える\n' +
+'- bad_end: 犯人が逃げ切った場合。真相は闇に葬られ、犯人は微笑み、無実の者は疑念を抱えたまま去る\n' +
+'- narrationは情景描写とキャラのセリフを交えたドラマチックな文章にする（GM読み上げ用）\n' +
+'- characters配列には全キャラの後日談を含める。各キャラにセリフを1つは入れる\n' +
+'- エンディングはプレイヤーの満足感に直結するので、感情を揺さぶる内容にする\n\n' +
+'【証拠カード(cards)の設計指針 ※非常に重要】\n' +
+'■ 絶対に守るべき禁止ルール：\n' +
+'- 個人証拠カードに「犯人を直接・間接的に特定できる情報」を絶対に書かないこと\n' +
+'- 禁止例1: 「事件後、○○（犯人名）が殺人現場から動揺しながら出てきた」→ 犯人特定に直結するのでNG\n' +
+'- 禁止例2: 「拳銃が○○の部屋で見つかった」（その拳銃が凶器の場合）→ 凶器の所持者＝犯人と直結するのでNG\n' +
+'- 禁止例3: 「○○が被害者を殺す動機を語っていた」→ 動機＋機会で犯人確定してしまうのでNG\n' +
+'- 禁止例4: 「○○が読んでいた本に毒の記述があった」（毒殺の場合）→ 殺害方法に関する知識＝犯人と直結するのでNG\n' +
+'- 禁止例5: 「○○のカバンからロープが見つかった」（絞殺の場合）→ 凶器所持＝犯人と直結するのでNG\n' +
+'- 殺害方法に直接関連する物品（毒物、凶器、薬品、道具等）を特定のキャラと結びつける記述は一切禁止\n' +
+'- すべての個人証拠カードを集めて読んだとしても、犯人が確定しない粒度にすること\n' +
+'- 犯人のカードであっても、犯人であることを示唆する内容にしないこと\n\n' +
+'■ 良い証拠カードの例：\n' +
+'- 間接的な手がかり: 「廊下で物音を聞いた」「誰かが急いで走る足音がした」\n' +
+'- 状況証拠: 「部屋の鍵が開いていた」「テーブルにグラスが2つあった」\n' +
+'- 人間関係のヒント: 「○○と△△が最近よく言い争っていたらしい」\n' +
+'- 矛盾の手がかり: 「○○は当日体調不良と言っていたが、元気そうに見えた」\n' +
+'- アリバイの穴: 「○○は部屋にいたと言っていたが、部屋の明かりは消えていた」\n' +
+'- ミスリード要素: 犯人以外のキャラにも怪しく見える情報を積極的に混ぜる\n\n' +
+'■ バランスの原則：\n' +
+'- 1枚のカードだけでは犯人が分からない。複数のカードを組み合わせて初めて推理が進む設計にする\n' +
+'- 犯人以外のキャラにも「怪しく見える情報」を持たせ、ミスリードを仕掛ける\n' +
+'- 共通証拠カードと個人証拠カードを組み合わせて初めて真相に近づける構造にする\n' +
+'- 犯人の個人カードには、犯人であることを隠すためのアリバイ的情報を載せる';
+
+  try {
+    // タイムラインCSVから同室情報を解析
+    var coPresenceInfo = parseCoPresence(timeline, charNames);
+
+    var userContent = '以下に基づいてHO・カード・エンディングをJSON形式で生成してください。\n\n' +
+      '【メインストーリー】\n' + mainStory + '\n\n' +
+      '【タイムラインCSV（各キャラが各時間帯にどの部屋にいたか）】\n' +
+      timeline + '\n\n' +
+      '【同室情報（※非常に重要：各時間帯に誰と誰が同じ部屋にいたか）】\n' +
+      '以下の情報は、タイムラインCSVから自動解析したものです。\n' +
+      'HOのtimelineを書く際、同じ部屋にいたキャラ同士の行動描写に必ず整合性を持たせてください。\n' +
+      '特に「AがBと会話した」場合、B側のタイムラインにも必ず「Aと会話した」旨を記述してください。\n' +
+      '一人でいた場合は「一人で〇〇していた」と明記してください。\n\n' +
+      coPresenceInfo + '\n\n' +
+      '【キャラクター名一覧】\n' + charNames.join(', ');
+    var rawText = await callGemini(apiKey, systemInstruction, userContent, true, 'storyStatus3');
+
+    var parsed;
+    try {
+      var clean = rawText.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      // 修復を試みる
+      try {
+        // JSONを抽出
+        var jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          var fixedJson = jsonMatch[0];
+          // 末尾が切れている場合：閉じ括弧を補完
+          var openBraces = (fixedJson.match(/\{/g) || []).length;
+          var closeBraces = (fixedJson.match(/\}/g) || []).length;
+          var openBrackets = (fixedJson.match(/\[/g) || []).length;
+          var closeBrackets = (fixedJson.match(/\]/g) || []).length;
+          // 未エスケープの改行を\\nに置換
+          fixedJson = fixedJson.replace(/(?<=":[ ]*"[^"]*)\n(?=[^"]*")/g, '\\n');
+          // 末尾のカンマ+閉じ括弧問題を修復
+          fixedJson = fixedJson.replace(/,\s*([}\]])/g, '$1');
+          // 閉じ括弧を補完
+          for (var bi = 0; bi < openBrackets - closeBrackets; bi++) fixedJson += ']';
+          for (var bj = 0; bj < openBraces - closeBraces; bj++) fixedJson += '}';
+          parsed = JSON.parse(fixedJson);
+        } else {
+          throw e;
+        }
+      } catch (e2) {
+        throw new Error('JSONの解析に失敗しました。「HO・カード・EDを生成」ボタンをもう一度押して再試行してください。\n\nエラー詳細: ' + e.message);
+      }
+    }
+
+    renderHOCardsED(parsed);
+    buildPlayBoard(parsed);
+    showStatus('storyStatus3', 'HO・カード・エンディングの生成が完了しました！', 'ok');
+
+    document.getElementById('phase2').classList.add('done');
+    document.getElementById('phase2').classList.remove('active');
+    document.getElementById('phase3').classList.add('active');
+    document.getElementById('phase3').classList.add('done');
+
+  } catch (err) {
+    showStatus('storyStatus3', 'エラー: ' + (err.message || String(err)), 'warn');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'HO・カード・EDを生成';
+  }
+}
+
+// ===================================================================
+//  Render HO / Cards / ED with character tabs
+// ===================================================================
+function renderHOCardsED(data) {
+  const tabsEl = document.getElementById('charTabs');
+  const contentsEl = document.getElementById('charContents');
+  tabsEl.innerHTML = '';
+  contentsEl.innerHTML = '';
+
+  const chars = data.characters || [];
+  const commonCards = data.common_cards || [];
+
+  // "共通カード" tab
+  const commonTab = document.createElement('button');
+  commonTab.className = 'char-tab active';
+  commonTab.textContent = '共通カード';
+  commonTab.onclick = () => switchCharTab('common');
+  tabsEl.appendChild(commonTab);
+
+  const commonDiv = document.createElement('div');
+  commonDiv.className = 'char-content active';
+  commonDiv.id = 'char-common';
+  let commonHTML = '<div class="sub-title">共通証拠カード <span class="badge">' + commonCards.length + '枚</span></div><div class="card-grid">';
+  commonCards.forEach(card => {
+    commonHTML += `<div class="evidence-card">
+      <div class="card-label">共通 / ${escHtml(card.id)}</div>
+      <strong>${escHtml(card.title)}</strong><br/>
+      <span style="color:var(--text-muted)">${escHtml(card.content)}</span>
+    </div>`;
+  });
+  commonHTML += '</div>';
+  commonDiv.innerHTML = commonHTML;
+  contentsEl.appendChild(commonDiv);
+
+  // Each character tab
+  chars.forEach((ch, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'char-tab';
+    tab.textContent = ch.name;
+    tab.onclick = () => switchCharTab(i);
+    tabsEl.appendChild(tab);
+
+    const div = document.createElement('div');
+    div.className = 'char-content';
+    div.id = 'char-' + i;
+
+    const ho = ch.ho || {};
+    const cards = (ch.cards && ch.cards.personal) || [];
+
+    let html = '';
+
+    // HO
+    html += '<div style="margin-bottom:20px;"><div class="sub-title">ハンドアウト（HO）</div>';
+    html += '<div class="output-box" style="max-height:none; white-space:normal;">';
+
+    // 目的（objectives配列）
+    html += '<strong>【目的】</strong><br>';
+    var objectives = ho.objectives || [];
+    if (objectives.length > 0) {
+      objectives.forEach(function(obj) {
+        html += '・' + escHtml(obj.goal || '') + ' … <span style="color:var(--accent-light);font-weight:600;">' + (obj.points || 0) + '点</span><br>';
+      });
+      if (ho.objectives_note) {
+        html += '<span style="color:var(--text-muted);font-size:11px;">※ ' + escHtml(ho.objectives_note) + '</span><br>';
+      }
+    } else if (ho.objective) {
+      html += escHtml(ho.objective) + '<br>';
+    }
+    html += '<br>';
+
+    // 概要
+    html += '<strong>【概要】</strong><br>' + escHtml(ho.summary || ho.backstory || '') + '<br><br>';
+
+    // あなたの知っていること
+    html += '<strong>【あなたの知っていること】</strong><br>' + escHtml(ho.known_info || ho.secrets || '') + '<br><br>';
+
+    // タイムライン
+    html += '<strong>【タイムライン】</strong><br>' + escHtmlBr(ho.timeline || ho.timeline_notes || '') + '<br>';
+
+    html += '</div></div>';
+
+    // Cards
+    html += '<div style="margin-bottom:20px;"><div class="sub-title">個人証拠カード <span class="badge">' + cards.length + '枚</span></div>';
+    html += '<div class="card-grid">';
+    cards.forEach(card => {
+      html += `<div class="evidence-card">
+        <div class="card-label">個人 / ${escHtml(card.id)}</div>
+        <strong>${escHtml(card.title)}</strong><br/>
+        <span style="color:var(--text-muted)">${escHtml(card.content)}</span>
+      </div>`;
+    });
+    html += '</div></div>';
+
+    div.innerHTML = html;
+    contentsEl.appendChild(div);
+  });
+
+  document.getElementById('hoOutput').style.display = 'block';
+  document.getElementById('hoOutput').scrollIntoView({ behavior: 'smooth' });
+}
+
+function switchCharTab(id) {
+  const allTabs = document.querySelectorAll('.char-tab');
+  allTabs.forEach((t, i) => {
+    if (id === 'common') {
+      t.classList.toggle('active', i === 0);
+    } else {
+      t.classList.toggle('active', i === id + 1);
+    }
+  });
+
+  document.querySelectorAll('.char-content').forEach(c => c.classList.remove('active'));
+  const target = document.getElementById('char-' + id);
+  if (target) target.classList.add('active');
+}
+
+// ===================================================================
+//  プレイ盤面の構築
+// ===================================================================
+var lastGeneratedData = null; // Phase3の生成データを保持
+
+function buildPlayBoard(data) {
+  lastGeneratedData = data;
+  var chars = data.characters || [];
+  var commonCards = data.common_cards || [];
+
+  document.getElementById('playEmpty').style.display = 'none';
+  document.getElementById('playBoard').style.display = 'block';
+
+  // 共通証拠カード
+  document.getElementById('playCommonCount').textContent = commonCards.length + '枚';
+  var commonEl = document.getElementById('playCommonCards');
+  commonEl.innerHTML = '';
+  commonCards.forEach(function(card, idx) {
+    commonEl.innerHTML += createFlipCard('common', '共通', card, idx);
+  });
+
+  // キャラ別
+  var charSections = document.getElementById('playCharSections');
+  charSections.innerHTML = '';
+  chars.forEach(function(ch, ci) {
+    var personalCards = (ch.cards && ch.cards.personal) || [];
+    var section = '<div class="play-char-section">';
+    section += '<div class="play-char-header">';
+    section += '<div class="char-name">' + escHtml(ch.name) + '</div>';
+    var ho = ch.ho || {};
+    if (ho.summary) {
+      var short = (ho.summary || '').substring(0, 40);
+      section += '<div class="char-role">' + escHtml(short) + '…</div>';
+    }
+    section += '<span class="badge">' + personalCards.length + '枚</span>';
+    section += '</div>';
+    section += '<div class="play-card-grid">';
+    personalCards.forEach(function(card, pi) {
+      section += createFlipCard('personal', escHtml(ch.name), card, ci * 100 + pi);
+    });
+    section += '</div></div>';
+    charSections.innerHTML += section;
+  });
+
+  // カードクリックイベントの登録
+  document.querySelectorAll('.play-card').forEach(function(el) {
+    el.addEventListener('click', function() {
+      el.classList.toggle('flipped');
+    });
+  });
+}
+
+function createFlipCard(type, ownerLabel, card, idx) {
+  var iconSymbol = type === 'common' ? '📋' : '🔍';
+  var labelText = type === 'common' ? '共通証拠' : ownerLabel + ' 個人';
+  return '<div class="play-card ' + type + '" data-idx="' + idx + '">' +
+    '<div class="play-card-inner">' +
+      '<div class="play-card-front">' +
+        '<div class="card-icon">' + iconSymbol + '</div>' +
+        '<div>' + labelText + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + escHtml(card.id || '') + '</div>' +
+      '</div>' +
+      '<div class="play-card-back">' +
+        '<div class="card-title">' + escHtml(card.title || '') + '</div>' +
+        '<div class="card-body">' + escHtml(card.content || '') + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function loadPlayFromJson() {
+  var jsonText = document.getElementById('playJsonInput').value.trim();
+  if (!jsonText) return;
+  try {
+    var clean = jsonText.replace(/```json|```/g, '').trim();
+    var data = JSON.parse(clean);
+    buildPlayBoard(data);
+  } catch(e) {
+    alert('JSONの解析に失敗しました: ' + e.message);
+  }
+}
+
+// ===================================================================
+//  タイマー機能
+// ===================================================================
+var PHASE_LABELS = [
+  '① 前半議論フェイズ',
+  '② 休憩',
+  '③ 後半議論フェイズ',
+  '④ 休憩',
+  '⑤ 最終議論フェイズ',
+  '⑥ 投票フェイズ'
+];
+
+function getPhaseMinutes(idx) {
+  var el = document.getElementById('phaseMin' + idx);
+  if (!el) return 1;
+  var v = parseInt(el.value, 10);
+  return (isNaN(v) || v < 1) ? 1 : v;
+}
+
+var timerState = {
+  currentPhase: 0,
+  remaining: 15 * 60,
+  running: false,
+  interval: null
+};
+
+function formatTime(sec) {
+  var m = Math.floor(sec / 60);
+  var s = sec % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateTimerDisplay() {
+  var clock = document.getElementById('timerClock');
+  var label = document.getElementById('timerPhaseLabel');
+
+  clock.textContent = formatTime(timerState.remaining);
+  label.textContent = PHASE_LABELS[timerState.currentPhase] || '';
+
+  // 色の変化
+  clock.classList.remove('warn', 'danger');
+  if (timerState.remaining <= 30) {
+    clock.classList.add('danger');
+  } else if (timerState.remaining <= 60) {
+    clock.classList.add('warn');
+  }
+
+  // フェイズインジケーター更新
+  for (var i = 0; i < 6; i++) {
+    var el = document.getElementById('tp-' + i);
+    if (!el) continue;
+    el.classList.remove('active', 'done');
+    if (i < timerState.currentPhase) {
+      el.classList.add('done');
+    } else if (i === timerState.currentPhase) {
+      el.classList.add('active');
+    }
+  }
+
+  // タイマー動作中は時間入力を無効化
+  for (var j = 0; j < 6; j++) {
+    var inp = document.getElementById('phaseMin' + j);
+    if (inp) inp.disabled = timerState.running;
+  }
+}
+
+function timerTick() {
+  if (timerState.remaining <= 0) {
+    timerStop();
+    try { new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczHj+QxN/Wl1UBHY+7z9OiYhQMcKjG2bNyMgBUlrvNwI1eFGWew8y3ijoAQpC1x7uRWxBZk7fKvJdnFVOPsMe2kWcXU5Owx7aRZxdTk7DHtpFnF1OTsMe2kWcXU5Owx7aRZw==').play(); } catch(e){}
+    return;
+  }
+  timerState.remaining--;
+  updateTimerDisplay();
+}
+
+function timerStart() {
+  if (timerState.running) return;
+  timerState.running = true;
+  timerState.interval = setInterval(timerTick, 1000);
+  updateTimerDisplay();
+}
+
+function timerStop() {
+  timerState.running = false;
+  if (timerState.interval) {
+    clearInterval(timerState.interval);
+    timerState.interval = null;
+  }
+  updateTimerDisplay();
+}
+
+function timerPause() {
+  timerStop();
+}
+
+function timerReset() {
+  timerStop();
+  timerState.currentPhase = 0;
+  timerState.remaining = getPhaseMinutes(0) * 60;
+  updateTimerDisplay();
+}
+
+function timerNextPhase() {
+  timerStop();
+  timerState.currentPhase++;
+  if (timerState.currentPhase >= 6) {
+    timerState.currentPhase = 5;
+    alert('全フェイズが終了しました！');
+    return;
+  }
+  timerState.remaining = getPhaseMinutes(timerState.currentPhase) * 60;
+  updateTimerDisplay();
+}
+
+
+// ===================================================================
+//  HTMLボタンにイベントリスナーを登録（DOM準備後に実行）
+// ===================================================================
+document.addEventListener('DOMContentLoaded', function() {
+  // もしDOMContentLoadedが既に発火済みの場合もあるが、scriptがbody末尾なのでここで安全
+});
+// body末尾のscriptなのでDOMは既に存在する
+document.getElementById('tabBtnStory').addEventListener('click', function(){ switchMainTab('story'); });
+document.getElementById('tabBtnTimeline').addEventListener('click', function(){ switchMainTab('timeline'); });
+document.getElementById('tabBtnPlay').addEventListener('click', function(){ switchMainTab('play'); });
+document.getElementById('btnGenStory').addEventListener('click', function(){ generateMainStory(); });
+document.getElementById('btnCopyStory').addEventListener('click', function(){ copyText('mainStoryText'); });
+document.getElementById('btnGoPhase2').addEventListener('click', function(){ goToPhase2(); });
+document.getElementById('btnGenHO').addEventListener('click', function(){ generateHOCardsED(); });
+document.getElementById('btnLoadPlayJson').addEventListener('click', function(){ loadPlayFromJson(); });
+
+// Phase 1のキャラ人数 → タイムラインタブの人数に連動
+document.getElementById('storyCharCount').addEventListener('change', function() {
+  document.getElementById('numPeople').value = this.value;
+  // タイムラインタブの変更イベントを発火させる
+  document.getElementById('numPeople').dispatchEvent(new Event('change'));
+});
+
+// PDF出力ボタン
+document.getElementById('btnPdfSummary').addEventListener('click', function(){ generateSummaryPdf(); });
+document.getElementById('btnPdfAllHO').addEventListener('click', function(){ generateAllHOPdf(); });
+document.getElementById('btnPdfCurrentHO').addEventListener('click', function(){ generateCurrentHOPdf(); });
+document.getElementById('btnPdfEndings').addEventListener('click', function(){ generateEndingsPdf(); });
+document.getElementById('btnPregenImages').addEventListener('click', function(){ pregenerateAllImages(); });
+
+// 手動アップロード：あらすじ表紙画像
+document.getElementById('uploadCoverImg').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    imageCache.cover = ev.target.result;
+    updateImagePreviews();
+    document.getElementById('imageGenStatus').textContent = '✅ あらすじ表紙画像をセットしました';
+  };
+  reader.readAsDataURL(file);
+});
+
+// 手動アップロード：キャラ表紙画像（複数）
+document.getElementById('uploadCharImgs').addEventListener('change', function(e) {
+  var files = e.target.files;
+  if (!files.length) return;
+  var chars = lastGeneratedData ? (lastGeneratedData.characters || []) : [];
+  var loaded = 0;
+  for (var i = 0; i < files.length && i < chars.length; i++) {
+    (function(idx) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        imageCache.chars[chars[idx].name] = ev.target.result;
+        loaded++;
+        if (loaded >= Math.min(files.length, chars.length)) {
+          updateImagePreviews();
+          document.getElementById('imageGenStatus').textContent = '✅ ' + loaded + '枚のキャラ表紙画像をセットしました';
+        }
+      };
+      reader.readAsDataURL(files[idx]);
+    })(i);
+  }
+});
+
+function updateImagePreviews() {
+  var container = document.getElementById('imagePreviews');
+  if (!container) return;
+  container.innerHTML = '';
+  if (imageCache.cover) {
+    container.innerHTML += '<div style="text-align:center;"><img src="' + imageCache.cover + '" style="height:80px;border-radius:6px;border:1px solid var(--border);"/><div style="font-size:10px;color:var(--text-muted);">表紙</div></div>';
+  }
+  var chars = lastGeneratedData ? (lastGeneratedData.characters || []) : [];
+  for (var i = 0; i < chars.length; i++) {
+    if (imageCache.chars[chars[i].name]) {
+      container.innerHTML += '<div style="text-align:center;"><img src="' + imageCache.chars[chars[i].name] + '" style="height:80px;border-radius:6px;border:1px solid var(--border);"/><div style="font-size:10px;color:var(--text-muted);">' + escHtml(chars[i].name) + '</div></div>';
+    }
+  }
+}
+
+// タイマーボタン
+document.getElementById('btnTimerStart').addEventListener('click', function(){ timerStart(); });
+document.getElementById('btnTimerPause').addEventListener('click', function(){ timerPause(); });
+document.getElementById('btnTimerReset').addEventListener('click', function(){ timerReset(); });
+document.getElementById('btnTimerNext').addEventListener('click', function(){ timerNextPhase(); });
+
+// タイマー初期表示
+updateTimerDisplay();
+
+// ===================================================================
+//  Timeline Generator (元のロジックをそのまま移植)
+// ===================================================================
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  function setStatus(msg, ok=false){
+    const el = $("status");
+    el.className = ok ? "status-msg ok" : "status-msg warn";
+    el.textContent = msg;
+  }
+
+  function buildNames(n, prefix){
+    return Array.from({length:n}, (_,i)=> prefix + (i+1));
+  }
+
+  function defaultPeopleLabels(n){
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return Array.from({length:n}, (_,i)=> letters[i] || ("P"+(i+1)));
+  }
+
+  function parsePeopleLabels(n){
+    const raw = $("peopleNames").value.trim();
+    if(!raw) return defaultPeopleLabels(n);
+    const arr = raw.split(",").map(s=>s.trim()).filter(Boolean);
+    const base = defaultPeopleLabels(n);
+    const out = [];
+    for(let i=0;i<n;i++) out.push(arr[i] ?? base[i]);
+    for(let i=0;i<n;i++) if(!out[i]) out[i] = base[i];
+    return out;
+  }
+
+  function parseSlotLabels(T){
+    const raw = $("slotNames").value.trim();
+    if(!raw) return Array.from({length:T}, (_,t)=> String(t));
+    const arr = raw.split(",").map(s=>s.trim()).filter(Boolean);
+    const out = [];
+    for(let t=0;t<T;t++){
+      out.push(arr[t] ?? String(t));
+      if(!out[t]) out[t] = String(t);
+    }
+    return out;
+  }
+
+  function parseRoomNames(n){
+    const raw = $("roomNames").value.trim();
+    if(!raw) return buildNames(n, "Room");
+    const arr = raw.split(",").map(s=>s.trim()).filter(Boolean);
+    if(arr.length >= n) return arr.slice(0,n);
+    return arr.concat(buildNames(n-arr.length, "Room"));
+  }
+
+  let constraintItems = [];
+  let idSeq = 1;
+
+  function currentPeopleCount(){ return Number($("numPeople").value); }
+  function currentSlotCount(){ return Number($("numSlots").value); }
+  function currentRoomCount(){ return Number($("numRooms").value); }
+
+  function clampSlot(t){ t = Number(t); if(Number.isNaN(t)) return 0; return Math.max(0, Math.min(currentSlotCount()-1, t)); }
+  function clampPerson(pi){ pi = Number(pi); if(Number.isNaN(pi)) return 0; return Math.max(0, Math.min(currentPeopleCount()-1, pi)); }
+  function clampRoom(r){ r = Number(r); if(Number.isNaN(r)) return 0; return Math.max(0, Math.min(currentRoomCount()-1, r)); }
+
+  function normalizeConstraintItems(){
+    const P = currentPeopleCount(), T = currentSlotCount(), R = currentRoomCount();
+    const before = constraintItems.length;
+    constraintItems = constraintItems.filter(it=>{
+      const d = it.data;
+      switch(it.type){
+        case "preferPair": case "avoidPair": return d.a >= 0 && d.a < P && d.b >= 0 && d.b < P && d.a !== d.b;
+        case "allHands": case "roomBan": return d.slot >= 0 && d.slot < T && d.room >= 0 && d.room < R;
+        case "fixed": return d.person >= 0 && d.person < P && d.slot >= 0 && d.slot < T && d.room >= 0 && d.room < R;
+        case "mustSolo": case "mustNotSolo": return d.person >= 0 && d.person < P && d.slot >= 0 && d.slot < T;
+        default: return true;
+      }
+    });
+    if(constraintItems.length !== before) setStatus(`無効制約を ${before-constraintItems.length} 件削除`, true);
+  }
+
+  function compileConstraints(){
+    const P = currentPeopleCount(), peopleLabels = parsePeopleLabels(P);
+    const c = { preferPairs:[], avoidPairs:[], allHands:[], fixed:[], roomBans:[], mustSolo:[], mustNotSolo:[] };
+    for(const item of constraintItems){
+      const t = item.type, d = item.data;
+      if(t==="preferPair") c.preferPairs.push({a:peopleLabels[d.a],b:peopleLabels[d.b],weight:d.weight});
+      if(t==="avoidPair") c.avoidPairs.push({a:peopleLabels[d.a],b:peopleLabels[d.b]});
+      if(t==="allHands") c.allHands.push({slot:d.slot,room:d.room});
+      if(t==="fixed") c.fixed.push({person:peopleLabels[d.person],slot:d.slot,room:d.room});
+      if(t==="roomBan") c.roomBans.push({slot:d.slot,room:d.room});
+      if(t==="mustSolo") c.mustSolo.push({person:peopleLabels[d.person],slot:d.slot});
+      if(t==="mustNotSolo") c.mustNotSolo.push({person:peopleLabels[d.person],slot:d.slot});
+    }
+    return c;
+  }
+
+  function refreshConstraintsTextarea(){ $("constraints").value = JSON.stringify(compileConstraints(), null, 2); }
+
+  function itemLabel(item){
+    const P = currentPeopleCount(), T = currentSlotCount();
+    const peopleLabels = parsePeopleLabels(P), slotLabels = parseSlotLabels(T), roomNames = parseRoomNames(currentRoomCount());
+    const d = item.data;
+    const slotText = s => `slot ${s}（${slotLabels[s]??s}）`;
+    const roomText = r => `${roomNames[r]??(("Room"+(r+1)))}(${r})`;
+    const personText = pi => `${peopleLabels[pi]??(("P"+(pi+1)))}(${pi})`;
+    switch(item.type){
+      case "preferPair": return `同席しがち：${personText(d.a)} & ${personText(d.b)}（重み${d.weight}）`;
+      case "avoidPair": return `同席禁止：${personText(d.a)} & ${personText(d.b)}`;
+      case "allHands": return `全員集合：${slotText(d.slot)} → ${roomText(d.room)}`;
+      case "fixed": return `部屋固定：${personText(d.person)} / ${slotText(d.slot)} → ${roomText(d.room)}`;
+      case "roomBan": return `部屋禁止：${slotText(d.slot)} で ${roomText(d.room)}`;
+      case "mustSolo": return `必ずソロ：${personText(d.person)} / ${slotText(d.slot)}`;
+      case "mustNotSolo": return `必ず同席：${personText(d.person)} / ${slotText(d.slot)}`;
+      default: return item.type;
+    }
+  }
+
+  function renderConstraintList(){
+    normalizeConstraintItems();
+    const list = $("constraintList");
+    if(!constraintItems.length){ list.innerHTML = `<div style="color:var(--text-muted);">（未設定）</div>`; refreshConstraintsTextarea(); return; }
+    list.innerHTML = "";
+    for(const item of constraintItems){
+      const div = document.createElement("div"); div.className = "listItem";
+      const left = document.createElement("div"); left.innerHTML = `<code>${itemLabel(item)}</code>`;
+      const right = document.createElement("div");
+      const btn = document.createElement("button"); btn.className = "btn btn-sm"; btn.textContent = "削除";
+      btn.addEventListener("click", ()=>{ constraintItems = constraintItems.filter(x=>x.id!==item.id); renderConstraintList(); });
+      right.appendChild(btn); div.appendChild(left); div.appendChild(right); list.appendChild(div);
+    }
+    refreshConstraintsTextarea();
+  }
+
+  function fillSelect(el, items){ el.innerHTML=""; for(const it of items){ const opt = document.createElement("option"); opt.value=it.value; opt.textContent=it.label; el.appendChild(opt); } }
+  function peopleItems(){ const P=currentPeopleCount(); return parsePeopleLabels(P).map((n,i)=>({value:String(i),label:`${i}: ${n}`})); }
+  function roomItems(){ const R=currentRoomCount(); return parseRoomNames(R).map((n,i)=>({value:String(i),label:`${i}: ${n}`})); }
+  function slotItems(){ const T=currentSlotCount(); return parseSlotLabels(T).map((n,t)=>({value:String(t),label:`${t}: ${n}`})); }
+
+  function renderEditor(){
+    normalizeConstraintItems();
+    const type = $("constraintType").value;
+    const ed = $("constraintEditor"); ed.innerHTML = "";
+    const pItems = peopleItems(), rItems = roomItems(), sItems = slotItems();
+    const row = document.createElement("div"); row.className = "line";
+    const addBtn = document.createElement("button"); addBtn.className = "btn btn-sm btn-primary"; addBtn.textContent = "この設定で追加";
+
+    if(type==="preferPair"||type==="avoidPair"){
+      const a = document.createElement("select"), b = document.createElement("select");
+      fillSelect(a,pItems); fillSelect(b,pItems); row.appendChild(a); row.appendChild(b);
+      let wInput = null;
+      if(type==="preferPair"){
+        const wl = document.createElement("label"); wl.style.cssText="margin:0;display:flex;align-items:center;gap:6px;";
+        wl.innerHTML = `重み <input type="number" min="1" max="5" value="2" style="width:64px;">`; wInput = wl.querySelector("input"); row.appendChild(wl);
+      }
+      addBtn.addEventListener("click",()=>{
+        const aa=clampPerson(Number(a.value)),bb=clampPerson(Number(b.value));
+        if(aa===bb){setStatus("同じ人物同士は指定できない",false);return;}
+        const x=Math.min(aa,bb),y=Math.max(aa,bb);
+        if(type==="avoidPair"){
+          constraintItems=constraintItems.filter(it=>!(it.type==="preferPair"&&it.data.a===x&&it.data.b===y));
+          if(constraintItems.some(it=>it.type==="avoidPair"&&it.data.a===x&&it.data.b===y)){setStatus("既にあるよ",false);return;}
+          constraintItems.push({id:idSeq++,type:"avoidPair",data:{a:x,b:y}});
+        } else {
+          const w=Math.max(1,Math.min(5,Number(wInput?.value??1)));
+          constraintItems=constraintItems.filter(it=>!(it.type==="avoidPair"&&it.data.a===x&&it.data.b===y));
+          const ex=constraintItems.find(it=>it.type==="preferPair"&&it.data.a===x&&it.data.b===y);
+          if(ex)ex.data.weight=w; else constraintItems.push({id:idSeq++,type:"preferPair",data:{a:x,b:y,weight:w}});
+        }
+        renderConstraintList(); setStatus("制約を追加したよ",true);
+      });
+    }
+
+    if(type==="allHands"||type==="roomBan"){
+      const slotSel=document.createElement("select"),roomSel=document.createElement("select");
+      fillSelect(slotSel,sItems); fillSelect(roomSel,rItems);
+      row.appendChild(document.createTextNode("slot ")); row.appendChild(slotSel); row.appendChild(roomSel);
+      addBtn.addEventListener("click",()=>{
+        const s=clampSlot(Number(slotSel.value)),r=clampRoom(Number(roomSel.value));
+        if(type==="allHands"){
+          constraintItems=constraintItems.filter(it=>!(it.type==="allHands"&&it.data.slot===s));
+          constraintItems.push({id:idSeq++,type:"allHands",data:{slot:s,room:r}});
+        } else {
+          if(constraintItems.some(it=>it.type==="roomBan"&&it.data.slot===s&&it.data.room===r)){setStatus("既にあるよ",false);return;}
+          constraintItems.push({id:idSeq++,type:"roomBan",data:{slot:s,room:r}});
+        }
+        renderConstraintList(); setStatus("制約を追加したよ",true);
+      });
+    }
+
+    if(type==="fixed"){
+      const personSel=document.createElement("select"),slotSel=document.createElement("select"),roomSel=document.createElement("select");
+      fillSelect(personSel,pItems); fillSelect(slotSel,sItems); fillSelect(roomSel,rItems);
+      row.appendChild(personSel); row.appendChild(document.createTextNode("slot ")); row.appendChild(slotSel); row.appendChild(roomSel);
+      addBtn.addEventListener("click",()=>{
+        const p=clampPerson(Number(personSel.value)),s=clampSlot(Number(slotSel.value)),r=clampRoom(Number(roomSel.value));
+        constraintItems=constraintItems.filter(it=>!(it.type==="fixed"&&it.data.person===p&&it.data.slot===s));
+        constraintItems.push({id:idSeq++,type:"fixed",data:{person:p,slot:s,room:r}});
+        renderConstraintList(); setStatus("制約を追加したよ",true);
+      });
+    }
+
+    if(type==="mustSolo"||type==="mustNotSolo"){
+      const personSel=document.createElement("select"),slotSel=document.createElement("select");
+      fillSelect(personSel,pItems); fillSelect(slotSel,sItems);
+      row.appendChild(personSel); row.appendChild(document.createTextNode("slot ")); row.appendChild(slotSel);
+      addBtn.addEventListener("click",()=>{
+        const p=clampPerson(Number(personSel.value)),s=clampSlot(Number(slotSel.value));
+        constraintItems=constraintItems.filter(it=>!((it.type==="mustSolo"||it.type==="mustNotSolo")&&it.data.person===p&&it.data.slot===s));
+        constraintItems.push({id:idSeq++,type,data:{person:p,slot:s}});
+        renderConstraintList(); setStatus("制約を追加したよ",true);
+      });
+    }
+
+    row.appendChild(addBtn); ed.appendChild(row);
+    const hint = document.createElement("div"); hint.className="hint"; hint.style.marginTop="8px";
+    hint.textContent="※ 人物名/Slot名を変えても、制約は番号で保持されます"; ed.appendChild(hint);
+  }
+
+  $("btnShowEditor").addEventListener("click", renderEditor);
+  $("btnClearConstraints").addEventListener("click", ()=>{ constraintItems=[]; renderConstraintList(); setStatus("制約を全削除したよ",true); });
+
+  // ---- Solver ----
+  function generate({people,slots,roomCount,cap,minSolo,maxSoloRun,constraints,maxTries=9000}){
+    const P=people.length,R=roomCount,T=slots;
+    const idx=Object.fromEntries(people.map((p,i)=>[p,i]));
+    const c=deepClone(constraints||{});
+    c.preferPairs=Array.isArray(c.preferPairs)?c.preferPairs:[];
+    c.avoidPairs=Array.isArray(c.avoidPairs)?c.avoidPairs:[];
+    c.allHands=Array.isArray(c.allHands)?c.allHands:[];
+    c.fixed=Array.isArray(c.fixed)?c.fixed:[];
+    c.roomBans=Array.isArray(c.roomBans)?c.roomBans:[];
+    c.mustSolo=Array.isArray(c.mustSolo)?c.mustSolo:[];
+    c.mustNotSolo=Array.isArray(c.mustNotSolo)?c.mustNotSolo:[];
+
+    const hardFail=(msg)=>({ok:false,error:msg});
+    for(const ah of c.allHands){if(ah.slot<0||ah.slot>=T)return hardFail("allHands.slot範囲外");if(ah.room<0||ah.room>=R)return hardFail("allHands.room範囲外");}
+    for(const fx of c.fixed){if(!(fx.person in idx))return hardFail("fixed.person不明:"+fx.person);if(fx.slot<0||fx.slot>=T)return hardFail("fixed.slot範囲外");if(fx.room<0||fx.room>=R)return hardFail("fixed.room範囲外");}
+    for(const rb of c.roomBans){if(rb.slot<0||rb.slot>=T)return hardFail("roomBans.slot範囲外");if(rb.room<0||rb.room>=R)return hardFail("roomBans.room範囲外");}
+    for(const av of c.avoidPairs){if(!(av.a in idx)||!(av.b in idx))return hardFail("avoidPairsに不明な人物");}
+    for(const ms of c.mustSolo){if(!(ms.person in idx))return hardFail("mustSolo.person不明:"+ms.person);if(ms.slot<0||ms.slot>=T)return hardFail("mustSolo.slot範囲外");}
+    for(const mn of c.mustNotSolo){if(!(mn.person in idx))return hardFail("mustNotSolo.person不明:"+mn.person);if(mn.slot<0||mn.slot>=T)return hardFail("mustNotSolo.slot範囲外");}
+
+    const fixedBy=Array.from({length:T},()=>Array(P).fill(null));
+    for(const ah of c.allHands){for(let pi=0;pi<P;pi++)fixedBy[ah.slot][pi]=ah.room;}
+    for(const fx of c.fixed){fixedBy[fx.slot][idx[fx.person]]=fx.room;}
+
+    const roomBanned=Array.from({length:T},()=>Array(R).fill(false));
+    for(const rb of c.roomBans)roomBanned[rb.slot][rb.room]=true;
+
+    const mustSoloArr=Array.from({length:T},()=>Array(P).fill(false));
+    const mustNotSoloArr=Array.from({length:T},()=>Array(P).fill(false));
+    for(const ms of c.mustSolo)mustSoloArr[ms.slot][idx[ms.person]]=true;
+    for(const mn of c.mustNotSolo)mustNotSoloArr[mn.slot][idx[mn.person]]=true;
+
+    const preferWeight=new Map();
+    for(const pr of c.preferPairs){
+      if(!(pr.a in idx)||!(pr.b in idx))continue;
+      const i=idx[pr.a],j=idx[pr.b],w=typeof pr.weight==="number"?pr.weight:1;
+      const a=Math.min(i,j),b=Math.max(i,j);
+      preferWeight.set(a+"-"+b,w);
+    }
+
+    function violatesAvoid(pi,room,slot,assign){
+      for(const av of c.avoidPairs){
+        const i=idx[av.a],j=idx[av.b];
+        if(pi!==i&&pi!==j)continue;
+        const other=(pi===i)?j:i;
+        if(assign[other][slot]!==null&&assign[other][slot]===room)return true;
+      }
+      return false;
+    }
+
+    function computeSoloStats(assign){
+      const soloCount=Array(P).fill(0),maxRun=Array(P).fill(0);
+      for(let t=0;t<T;t++){const occ=Array(R).fill(0);for(let pi=0;pi<P;pi++)occ[assign[pi][t]]++;for(let pi=0;pi<P;pi++){if(occ[assign[pi][t]]===1)soloCount[pi]++;}}
+      for(let pi=0;pi<P;pi++){let run=0;for(let t=0;t<T;t++){const room=assign[pi][t];let cnt=0;for(let pj=0;pj<P;pj++)if(assign[pj][t]===room)cnt++;if(cnt===1){run++;maxRun[pi]=Math.max(maxRun[pi],run);}else{run=0;}}}
+      return{soloCount,maxRun};
+    }
+
+    function checkMustSoloConstraints(assign){
+      for(let t=0;t<T;t++){const occ=Array(R).fill(0);for(let pi=0;pi<P;pi++)occ[assign[pi][t]]++;for(let pi=0;pi<P;pi++){const isSolo=(occ[assign[pi][t]]===1);if(mustSoloArr[t][pi]&&!isSolo)return false;if(mustNotSoloArr[t][pi]&&isSolo)return false;}}
+      return true;
+    }
+
+    function satisfiesGlobal(assign){
+      if(!checkMustSoloConstraints(assign))return false;
+      const{soloCount,maxRun}=computeSoloStats(assign);
+      for(let pi=0;pi<P;pi++){if(soloCount[pi]<minSolo)return false;if(maxRun[pi]>maxSoloRun)return false;}
+      return true;
+    }
+
+    for(let attempt=0;attempt<maxTries;attempt++){
+      const assign=Array.from({length:P},()=>Array(T).fill(null));
+      const occupancy=Array.from({length:T},()=>Array(R).fill(0));
+      let seedOk=true;
+      for(let t=0;t<T&&seedOk;t++){for(let pi=0;pi<P;pi++){const fx=fixedBy[t][pi];if(fx===null)continue;if(roomBanned[t][fx]){seedOk=false;break;}if(occupancy[t][fx]+1>cap){seedOk=false;break;}if(violatesAvoid(pi,fx,t,assign)){seedOk=false;break;}assign[pi][t]=fx;occupancy[t][fx]+=1;}}
+      if(!seedOk)continue;
+
+      function fill(t,pi){
+        if(t===T)return true; if(pi===P)return fill(t+1,0); if(assign[pi][t]!==null)return fill(t,pi+1);
+        let candidates;
+        if(fixedBy[t][pi]!==null){candidates=[fixedBy[t][pi]];}
+        else{
+          candidates=Array.from({length:R},(_,r)=>r);
+          for(let i=candidates.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[candidates[i],candidates[j]]=[candidates[j],candidates[i]];}
+          const preferRooms=new Map();
+          for(let pj=0;pj<P;pj++){if(pj===pi)continue;const rj=assign[pj][t];if(rj===null)continue;const a=Math.min(pi,pj),b=Math.max(pi,pj);const w=preferWeight.get(a+"-"+b);if(w)preferRooms.set(rj,(preferRooms.get(rj)||0)+w);}
+          candidates.sort((r1,r2)=>(preferRooms.get(r2)||0)-(preferRooms.get(r1)||0));
+        }
+        for(const r of candidates){
+          if(roomBanned[t][r])continue;if(occupancy[t][r]+1>cap)continue;if(violatesAvoid(pi,r,t,assign))continue;
+          assign[pi][t]=r;occupancy[t][r]+=1;
+          if(fill(t,pi+1))return true;
+          occupancy[t][r]-=1;assign[pi][t]=null;
+        }
+        return false;
+      }
+
+      if(!fill(0,0))continue;
+      if(!satisfiesGlobal(assign))continue;
+      return{ok:true,assign,people};
+    }
+    return{ok:false,error:"生成に失敗。制約がキツい可能性。制約を減らすか、部屋数/同席上限を上げて再生成してみて。"};
+  }
+
+  // ---- Rendering ----
+  function computeOccupancyLists(assign,peopleLabels,roomCount,slotCount){
+    const P=peopleLabels.length,R=roomCount,T=slotCount;
+    const occ=Array.from({length:T},()=>Array.from({length:R},()=>[]));
+    for(let t=0;t<T;t++)for(let pi=0;pi<P;pi++)occ[t][assign[pi][t]].push(peopleLabels[pi]);
+    return occ;
+  }
+
+  function renderPeopleView(assign,peopleLabels,slotLabels,roomNames){
+    const P=peopleLabels.length,T=slotLabels.length;
+    const pv=document.createElement("table");
+    const trh=document.createElement("tr");
+    trh.appendChild(Object.assign(document.createElement("th"),{textContent:"人物\\Slot"}));
+    for(let t=0;t<T;t++){const th=document.createElement("th");th.textContent=slotLabels[t];trh.appendChild(th);}
+    pv.appendChild(trh);
+    for(let pi=0;pi<P;pi++){
+      const tr=document.createElement("tr");
+      tr.appendChild(Object.assign(document.createElement("th"),{textContent:peopleLabels[pi]}));
+      for(let t=0;t<T;t++){const td=document.createElement("td");td.textContent=roomNames[assign[pi][t]];tr.appendChild(td);}
+      pv.appendChild(tr);
+    }
+    $("peopleView").innerHTML=""; $("peopleView").appendChild(pv);
+  }
+
+  function renderRoomsView(assign,peopleLabels,slotLabels,roomNames){
+    const R=roomNames.length,T=slotLabels.length;
+    const occ=computeOccupancyLists(assign,peopleLabels,R,T);
+    const rv=document.createElement("table");
+    const trh=document.createElement("tr");
+    trh.appendChild(Object.assign(document.createElement("th"),{textContent:"部屋\\Slot"}));
+    for(let t=0;t<T;t++){const th=document.createElement("th");th.textContent=slotLabels[t];trh.appendChild(th);}
+    rv.appendChild(trh);
+    for(let r=0;r<R;r++){
+      const tr=document.createElement("tr");
+      tr.appendChild(Object.assign(document.createElement("th"),{textContent:roomNames[r]}));
+      for(let t=0;t<T;t++){const td=document.createElement("td");const list=occ[t][r];td.innerHTML=list.length?list.map(p=>`<span class="pill">${p}</span>`).join(""):"—";tr.appendChild(td);}
+      rv.appendChild(tr);
+    }
+    $("roomsView").innerHTML=""; $("roomsView").appendChild(rv);
+  }
+
+  function renderCoPresenceView(assign,peopleLabels,slotLabels,roomCount){
+    const P=peopleLabels.length,T=slotLabels.length,R=roomCount;
+    const occ=computeOccupancyLists(assign,peopleLabels,R,T);
+    const cv=document.createElement("table");
+    const trh=document.createElement("tr");
+    trh.appendChild(Object.assign(document.createElement("th"),{textContent:"人物\\Slot（同席者）"}));
+    for(let t=0;t<T;t++){const th=document.createElement("th");th.textContent=slotLabels[t];trh.appendChild(th);}
+    cv.appendChild(trh);
+    for(let pi=0;pi<P;pi++){
+      const tr=document.createElement("tr");
+      tr.appendChild(Object.assign(document.createElement("th"),{textContent:peopleLabels[pi]}));
+      for(let t=0;t<T;t++){const td=document.createElement("td");const room=assign[pi][t];const list=occ[t][room];td.innerHTML=list.map(p=>`<span class="pill">${p}</span>`).join("");tr.appendChild(td);}
+      cv.appendChild(tr);
+    }
+    $("coView").innerHTML=""; $("coView").appendChild(cv);
+  }
+
+  function buildPeopleCsv(assign,peopleLabels,slotLabels,roomNames){
+    const T=slotLabels.length;
+    const header=["person"].concat(Array.from({length:T},(_,t)=>`slot${t}:${slotLabels[t]}`));
+    const rows=[header.map(x=>`"${x.replaceAll('"','""')}"`).join(",")];
+    for(let pi=0;pi<peopleLabels.length;pi++){
+      const row=[`"${peopleLabels[pi].replaceAll('"','""')}"`].concat(assign[pi].map(r=>`"${String(roomNames[r]).replaceAll('"','""')}"`));
+      rows.push(row.join(","));
+    }
+    return rows.join("\n");
+  }
+
+  function buildRoomsCsv(assign,peopleLabels,slotLabels,roomNames){
+    const T=slotLabels.length,R=roomNames.length;
+    const occ=computeOccupancyLists(assign,peopleLabels,R,T);
+    const header=["room"].concat(Array.from({length:T},(_,t)=>`slot${t}:${slotLabels[t]}`));
+    const rows=[header.map(x=>`"${x.replaceAll('"','""')}"`).join(",")];
+    for(let r=0;r<R;r++){
+      const row=[`"${roomNames[r].replaceAll('"','""')}"`].concat(occ.map(byRoom=>`"${byRoom[r].join(" ").replaceAll('"','""')}"`));
+      rows.push(row.join(","));
+    }
+    return rows.join("\n");
+  }
+
+  let lastAssign=null;
+
+  function initAll(){normalizeConstraintItems();renderEditor();renderConstraintList();refreshConstraintsTextarea();rerenderOutputsIfAny();}
+
+  function rerenderOutputsIfAny(){
+    if(!lastAssign)return;
+    const P=currentPeopleCount(),T=currentSlotCount(),R=currentRoomCount();
+    const peopleLabels=parsePeopleLabels(P),slotLabels=parseSlotLabels(T),roomNames=parseRoomNames(R);
+    renderPeopleView(lastAssign,peopleLabels,slotLabels,roomNames);
+    renderRoomsView(lastAssign,peopleLabels,slotLabels,roomNames);
+    renderCoPresenceView(lastAssign,peopleLabels,slotLabels,R);
+  }
+
+  function run(){
+    const P=currentPeopleCount(),T=currentSlotCount(),R=currentRoomCount();
+    const cap=Number($("maxRoomCap").value),minSoloVal=Number($("minSolo").value),maxSoloRun=Number($("maxSoloRun").value);
+    if(cap<1){setStatus("同席最大人数が不正",false);return;}
+    if(P<2){setStatus("人数が少なすぎ",false);return;}
+    if(T<4){setStatus("スロットが少なすぎ",false);return;}
+    if(R<2){setStatus("部屋が少なすぎ",false);return;}
+    normalizeConstraintItems();
+    const peopleLabels=parsePeopleLabels(P),slotLabels=parseSlotLabels(T),roomNames=parseRoomNames(R);
+    const constraints=compileConstraints();
+    const res=generate({people:peopleLabels,slots:T,roomCount:R,cap,minSolo:minSoloVal,maxSoloRun,constraints,maxTries:9000});
+    if(!res.ok){lastAssign=null;$("peopleView").innerHTML="";$("roomsView").innerHTML="";$("coView").innerHTML="";setStatus(res.error,false);return;}
+    lastAssign=res.assign;
+    renderPeopleView(res.assign,peopleLabels,slotLabels,roomNames);
+    renderRoomsView(res.assign,peopleLabels,slotLabels,roomNames);
+    renderCoPresenceView(res.assign,peopleLabels,slotLabels,R);
+    refreshConstraintsTextarea();
+    setStatus(`生成OK。\n・部屋上限 ${cap}人\n・各人ソロ最低 ${minSoloVal} マス\n・ソロ連続最大 ${maxSoloRun} マス\n（人物名/Slot名は表示に反映済み）`,true);
+  }
+
+  $("btnGen").addEventListener("click",run);
+  $("btnReroll").addEventListener("click",run);
+
+  $("btnCsvPeople").addEventListener("click",()=>{
+    if(!lastAssign){setStatus("先に生成してね",false);return;}
+    const P=currentPeopleCount(),T=currentSlotCount(),R=currentRoomCount();
+    const csv=buildPeopleCsv(lastAssign,parsePeopleLabels(P),parseSlotLabels(T),parseRoomNames(R));
+    navigator.clipboard.writeText(csv).then(()=>setStatus("人物CSVをコピーしたよ。",true)).catch(()=>{
+      execCommandCopy(csv).then(()=>setStatus("人物CSVをコピーしたよ。",true)).catch(()=>showCsvPopup(csv,"人物CSV"));
+    });
+  });
+
+  $("btnCsvRooms").addEventListener("click",()=>{
+    if(!lastAssign){setStatus("先に生成してね",false);return;}
+    const P=currentPeopleCount(),T=currentSlotCount(),R=currentRoomCount();
+    const csv=buildRoomsCsv(lastAssign,parsePeopleLabels(P),parseSlotLabels(T),parseRoomNames(R));
+    navigator.clipboard.writeText(csv).then(()=>setStatus("部屋CSVをコピーしたよ。",true)).catch(()=>{
+      execCommandCopy(csv).then(()=>setStatus("部屋CSVをコピーしたよ。",true)).catch(()=>showCsvPopup(csv,"部屋CSV"));
+    });
+  });
+
+  ["numPeople","peopleNames","numSlots","slotNames","numRooms","roomNames"].forEach(id=>{
+    $(id).addEventListener("change",()=>initAll());
+  });
+
+  initAll();
+})();
+</script>
+</body>
+</html>
