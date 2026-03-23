@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="utf-8"><title>GitHub Pages 画像生成テスト</title></head>
+<body style="font-family:sans-serif; padding:20px;">
+<h2>GitHub Pages 画像生成API テスト</h2>
+<p>このページをGitHub Pagesにデプロイして開いてください。</p>
+<hr>
+
+<h3>テスト1: Pollinations (image.pollinations.ai) - imgタグ</h3>
+<div id="s1">⏳ 読み込み中...</div>
+<img id="i1" width="300" style="border:1px solid #ccc;display:none" />
+
+<h3>テスト2: Pollinations (gen.pollinations.ai) - imgタグ</h3>
+<div id="s2">⏳ 読み込み中...</div>
+<img id="i2" width="300" style="border:1px solid #ccc;display:none" />
+
+<h3>テスト3: Pollinations fetch → blob</h3>
+<div id="s3">⏳ テスト中...</div>
+<img id="i3" width="300" style="border:1px solid #ccc;display:none" />
+
+<h3>テスト4: Hugging Face Inference API (無料・トークン不要)</h3>
+<div id="s4">⏳ テスト中...</div>
+<img id="i4" width="300" style="border:1px solid #ccc;display:none" />
+
+<h3>テスト5: picsum.photos (動作確認用)</h3>
+<div id="s5">⏳ 読み込み中...</div>
+<img id="i5" width="300" style="border:1px solid #ccc;display:none" />
+
+<script>
+function testImg(id, url) {
+  var img = document.getElementById('i' + id);
+  var status = document.getElementById('s' + id);
+  var timer = setTimeout(function() {
+    if (status.textContent.indexOf('⏳') >= 0) status.textContent = '❌ タイムアウト (60秒)';
+  }, 60000);
+  img.onload = function() { clearTimeout(timer); status.textContent = '✅ 成功! (' + img.naturalWidth + 'x' + img.naturalHeight + ')'; img.style.display = 'block'; };
+  img.onerror = function() { clearTimeout(timer); status.textContent = '❌ 失敗 (onerror)'; };
+  img.src = url;
+}
+
+var prompt = 'a dark mysterious mansion at night cinematic';
+var seed = Math.floor(Math.random() * 100000);
+
+// テスト1: Pollinations old endpoint
+testImg(1, 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=512&height=384&nologo=true&seed=' + seed);
+
+// テスト2: Pollinations new endpoint
+testImg(2, 'https://gen.pollinations.ai/image/' + encodeURIComponent(prompt) + '?width=512&height=384&nologo=true&seed=' + seed);
+
+// テスト3: Pollinations fetch
+(async function() {
+  var s = document.getElementById('s3');
+  try {
+    var url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=512&height=384&nologo=true&seed=' + (seed+1);
+    var res = await fetch(url);
+    if (!res.ok) { s.textContent = '❌ fetch HTTP ' + res.status; return; }
+    var blob = await res.blob();
+    s.textContent = '✅ fetch成功! blob size=' + blob.size + ' type=' + blob.type;
+    document.getElementById('i3').src = URL.createObjectURL(blob);
+    document.getElementById('i3').style.display = 'block';
+  } catch(e) {
+    s.textContent = '❌ fetch例外: ' + e.message;
+  }
+})();
+
+// テスト4: Hugging Face Inference API (無料・匿名アクセス)
+(async function() {
+  var s = document.getElementById('s4');
+  try {
+    var res = await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inputs: prompt })
+    });
+    if (!res.ok) { s.textContent = '❌ HF HTTP ' + res.status + ' ' + (await res.text()).substring(0,100); return; }
+    var blob = await res.blob();
+    s.textContent = '✅ HF成功! blob size=' + blob.size + ' type=' + blob.type;
+    document.getElementById('i4').src = URL.createObjectURL(blob);
+    document.getElementById('i4').style.display = 'block';
+  } catch(e) {
+    s.textContent = '❌ HF例外: ' + e.message;
+  }
+})();
+
+// テスト5: picsum
+testImg(5, 'https://picsum.photos/512/384?random=' + seed);
+</script>
+</body>
+</html>
