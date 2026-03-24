@@ -555,37 +555,40 @@
         <div class="sub-title" style="margin-bottom:10px;">🎨 表紙AI画像の準備</div>
 
         <div style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px;">
-          <div style="font-size:13px; font-weight:600; color:var(--accent-light); margin-bottom:8px;">手順（3ステップ）</div>
-          <div style="font-size:12px; color:var(--text); line-height:2;">
-            <strong>①</strong> <a href="https://gemini.google.com/" target="_blank" style="color:var(--accent-light);">Gemini</a> を開き、以下のようなプロンプトで画像を生成：<br>
-            <span style="color:var(--text-muted); font-size:11px; margin-left:20px;">あらすじ用：「暗い夜の洋館のイラストを生成して」</span><br>
-            <span style="color:var(--text-muted); font-size:11px; margin-left:20px;">キャラ用：「ミステリアスな人物のアニメ風ポートレートを生成して」</span><br>
-            <strong>②</strong> 生成された画像を右クリック→「画像を保存」でダウンロード<br>
-            <strong>③</strong> 下の欄にファイルを選択またはドラッグ＆ドロップ
+          <div style="font-size:13px; font-weight:600; color:var(--accent-light); margin-bottom:8px;">方法1: OpenAI API自動生成（GPT Image 1 Mini / Medium品質・約5円/枚）</div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:12px; color:var(--text);">OpenAI APIキー：</label>
+            <input type="password" id="openaiApiKey" placeholder="sk-..." style="font-family:monospace; width:100%; margin-top:2px;" />
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+              <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent-light);">OpenAI API Keys</a> で取得（新規登録で$5の無料クレジット付き・クレジットカード不要）
+            </div>
           </div>
+          <button class="btn btn-primary btn-sm" id="btnPregenImages">🎨 表紙画像を自動生成</button>
         </div>
 
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:220px;">
-            <label style="font-size:12px; font-weight:600; color:var(--text);">あらすじ表紙画像：</label>
-            <input type="file" id="uploadCoverImg" accept="image/*" style="font-size:11px; width:100%; margin-top:4px;">
+        <details>
+          <summary style="cursor:pointer; font-size:12px; font-weight:600; color:var(--accent-light); margin-bottom:8px;">方法2: 手動アップロード（Gemini等で生成した画像を使う場合）</summary>
+          <div style="padding:10px 0;">
+            <div style="font-size:12px; color:var(--text); line-height:2; margin-bottom:8px;">
+              <strong>①</strong> <a href="https://gemini.google.com/" target="_blank" style="color:var(--accent-light);">Gemini</a> で画像を生成 →
+              <strong>②</strong> 右クリック→保存 →
+              <strong>③</strong> 下の欄にファイルを選択
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:220px;">
+                <label style="font-size:12px; color:var(--text);">あらすじ表紙画像：</label>
+                <input type="file" id="uploadCoverImg" accept="image/*" style="font-size:11px; width:100%; margin-top:4px;">
+              </div>
+              <div style="flex:1; min-width:220px;">
+                <label style="font-size:12px; color:var(--text);">キャラ表紙画像（複数選択可）：</label>
+                <input type="file" id="uploadCharImgs" accept="image/*" multiple style="font-size:11px; width:100%; margin-top:4px;">
+              </div>
+            </div>
           </div>
-          <div style="flex:1; min-width:220px;">
-            <label style="font-size:12px; font-weight:600; color:var(--text);">キャラ表紙画像（複数選択可・キャラ順）：</label>
-            <input type="file" id="uploadCharImgs" accept="image/*" multiple style="font-size:11px; width:100%; margin-top:4px;">
-          </div>
-        </div>
+        </details>
 
         <div id="imageGenStatus" style="font-size:12px; color:var(--text-muted); margin-top:8px; min-height:18px;"></div>
         <div id="imagePreviews" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
-
-        <details style="margin-top:10px;">
-          <summary style="cursor:pointer; font-size:11px; color:var(--text-muted);">API自動生成（Gemini画像生成APIの無料枠が有効な場合のみ）</summary>
-          <div style="margin-top:6px;">
-            <button class="btn btn-sm" id="btnPregenImages">🎨 API自動生成を試す</button>
-            <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">※ 現在Googleの無料枠が停止中(limit:0)のため動作しない可能性が高いです</span>
-          </div>
-        </details>
       </div>
       <div class="btn-group" style="margin-bottom:12px;">
         <button class="btn btn-sm" id="btnPdfSummary">📄 あらすじPDF出力</button>
@@ -873,7 +876,7 @@ function finishPdfWindow(win, htmlContent) {
 }
 
 // ===================================================================
-//  AI画像生成（Gemini gemini-2.5-flash-image）＋キャッシュ管理
+//  AI画像生成（OpenAI GPT Image 1 Mini / Medium品質）＋キャッシュ管理
 // ===================================================================
 var imageCache = {
   cover: null,     // あらすじ表紙用
@@ -881,51 +884,71 @@ var imageCache = {
 };
 
 async function generateImageBase64(prompt, statusEl) {
-  var apiKey = getApiKey();
-  if (!apiKey) { console.log('画像生成: APIキーなし'); return null; }
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + encodeURIComponent(apiKey);
+  var apiKey = document.getElementById('openaiApiKey').value.trim();
+  if (!apiKey) { console.log('画像生成: OpenAI APIキーなし'); if (statusEl) statusEl.textContent = '❌ OpenAI APIキーを入力してください'; return null; }
 
-  var maxRetries = 2;
+  var maxRetries = 1;
   for (var attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
-      var waitSec = attempt === 1 ? 30 : 60;
-      console.log('画像生成: ' + waitSec + '秒待機してリトライ');
-      if (statusEl) statusEl.textContent = '⏳ レート制限中… ' + waitSec + '秒後にリトライ (' + attempt + '/' + maxRetries + ')';
-      await new Promise(function(r){ setTimeout(r, waitSec * 1000); });
+      if (statusEl) statusEl.textContent = '⏳ リトライ中…';
+      await new Promise(function(r){ setTimeout(r, 3000); });
     }
     try {
       if (statusEl) statusEl.textContent = '🎨 画像生成中…';
-      var res = await fetch(url, {
+      var res = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+          model: 'gpt-image-1-mini',
+          prompt: prompt,
+          n: 1,
+          size: '1024x1024',
+          quality: 'medium'
         })
       });
       if (res.status === 429) {
         console.log('画像生成: 429 attempt=' + (attempt+1));
         continue;
       }
-      if (!res.ok) { console.log('画像生成: HTTP ' + res.status); return null; }
+      if (!res.ok) {
+        var errText = await res.text();
+        console.log('画像生成: HTTP ' + res.status + ' ' + errText.substring(0, 200));
+        if (statusEl) statusEl.textContent = '❌ HTTP ' + res.status;
+        return null;
+      }
       var data = await res.json();
-      var parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
-      if (!parts) { console.log('画像生成: partsなし'); return null; }
-      for (var i = 0; i < parts.length; i++) {
-        if (parts[i].inlineData && parts[i].inlineData.data) {
-          var mime = parts[i].inlineData.mimeType || 'image/png';
-          var dataUrl = 'data:' + mime + ';base64,' + parts[i].inlineData.data;
-          console.log('画像生成成功 (length: ' + dataUrl.length + ')');
+      // b64_jsonがあればそのまま使う
+      if (data.data && data.data[0] && data.data[0].b64_json) {
+        var dataUrl = 'data:image/png;base64,' + data.data[0].b64_json;
+        console.log('画像生成成功 b64 (length: ' + dataUrl.length + ')');
+        return dataUrl;
+      }
+      // URLが返ってきた場合はfetchしてbase64に変換
+      if (data.data && data.data[0] && data.data[0].url) {
+        if (statusEl) statusEl.textContent = '🎨 画像ダウンロード中…';
+        var imgRes = await fetch(data.data[0].url);
+        if (imgRes.ok) {
+          var blob = await imgRes.blob();
+          var dataUrl = await new Promise(function(resolve) {
+            var reader = new FileReader();
+            reader.onload = function() { resolve(reader.result); };
+            reader.readAsDataURL(blob);
+          });
+          console.log('画像生成成功 url->b64 (length: ' + dataUrl.length + ')');
           return dataUrl;
         }
       }
+      console.log('画像生成: データなし', JSON.stringify(data).substring(0, 200));
       return null;
     } catch(e) {
       console.log('画像生成エラー:', e.message);
+      if (statusEl) statusEl.textContent = '❌ エラー: ' + e.message;
       return null;
     }
   }
-  console.log('画像生成: 全リトライ失敗');
   return null;
 }
 
@@ -933,6 +956,8 @@ async function generateImageBase64(prompt, statusEl) {
 async function pregenerateAllImages() {
   var statusEl = document.getElementById('imageGenStatus');
   if (!statusEl) return;
+  var apiKey = document.getElementById('openaiApiKey').value.trim();
+  if (!apiKey) { statusEl.textContent = '❌ OpenAI APIキーを入力してください'; return; }
   var btn = document.getElementById('btnPregenImages');
   if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
 
@@ -948,17 +973,13 @@ async function pregenerateAllImages() {
     imageCache.cover = coverImg;
     statusEl.textContent = '✅ あらすじ表紙 完了 (' + done + '/' + total + ')';
   } else {
-    statusEl.textContent = '❌ あらすじ表紙 失敗（429の場合は時間を置いて再試行）(' + done + '/' + total + ')';
+    statusEl.textContent = '❌ あらすじ表紙 失敗 (' + done + '/' + total + ')';
   }
 
   // 各キャラ
   for (var ci = 0; ci < chars.length; ci++) {
     statusEl.textContent = '🎨 ' + chars[ci].name + ' の表紙を生成中… (' + (++done) + '/' + total + ')';
-    // キャラ間に15秒の間隔を空けてレート制限を回避
-    if (ci > 0 || coverImg) {
-      statusEl.textContent += ' (15秒待機中…)';
-      await new Promise(function(r){ setTimeout(r, 15000); });
-    }
+
     var charImg = await generateImageBase64('Generate an anime-style character portrait for a murder mystery game. Mysterious person, dramatic lighting, dark atmosphere, upper body portrait. No text in the image.', statusEl);
     if (charImg) {
       imageCache.chars[chars[ci].name] = charImg;
@@ -971,7 +992,7 @@ async function pregenerateAllImages() {
   }
 
   var successCount = (imageCache.cover ? 1 : 0) + Object.keys(imageCache.chars).length;
-  statusEl.textContent = '完了: ' + successCount + '/' + total + '枚の画像を生成しました' + (successCount < total ? '（429エラーの場合は方法2で手動アップロードしてください）' : ' ✅');
+  statusEl.textContent = '完了: ' + successCount + '/' + total + '枚の画像を生成しました' + (successCount < total ? '' : ' ✅');
   if (btn) { btn.disabled = false; btn.textContent = '🎨 表紙画像を自動生成（再試行）'; }
   updateImagePreviews();
 }
