@@ -952,6 +952,24 @@ async function generateImageBase64(prompt, statusEl) {
   return null;
 }
 
+// ストーリーから舞台情報を抽出してプロンプトに使う
+function extractSettingForPrompt(storyText) {
+  // あらすじセクションから舞台の雰囲気を抽出
+  var synopsis = '';
+  var match = storyText.match(/■\s*あらすじ[^]*?\n([\s\S]*?)(?=■|$)/);
+  if (match) synopsis = match[1].trim().substring(0, 200);
+  // タイトルも取得
+  var title = extractTitle(storyText);
+  return { title: title, synopsis: synopsis };
+}
+
+// キャラ情報からプロンプト用の説明を生成
+function getCharDescription(ch) {
+  var ho = ch.ho || {};
+  var summary = (ho.summary || '').substring(0, 150);
+  return { name: ch.name, summary: summary };
+}
+
 // 全表紙画像をプリ生成する関数
 async function pregenerateAllImages() {
   var statusEl = document.getElementById('imageGenStatus');
@@ -966,9 +984,19 @@ async function pregenerateAllImages() {
   total += chars.length;
   var done = 0;
 
-  // 表紙
+  // ストーリーから舞台情報を取得
+  var storyText = document.getElementById('mainStoryText').textContent || '';
+  var setting = extractSettingForPrompt(storyText);
+
+  // あらすじ表紙のプロンプト（舞台を反映）
+  var coverPrompt = 'Generate a cinematic illustration for a murder mystery scenario cover. ' +
+    'Setting: ' + setting.synopsis + '. ' +
+    'The image should capture the atmosphere and location described above. ' +
+    'Dark, mysterious mood, dramatic lighting, suspenseful. ' +
+    'Do NOT include any text, letters, words, or titles in the image.';
+
   statusEl.textContent = '🎨 あらすじ表紙を生成中… (' + (++done) + '/' + total + ')';
-  var coverImg = await generateImageBase64('Generate an illustration for a murder mystery book cover. Dark, mysterious atmosphere, old building at night, shadows, moonlight, cinematic. No text in the image.', statusEl);
+  var coverImg = await generateImageBase64(coverPrompt, statusEl);
   if (coverImg) {
     imageCache.cover = coverImg;
     statusEl.textContent = '✅ あらすじ表紙 完了 (' + done + '/' + total + ')';
@@ -976,23 +1004,50 @@ async function pregenerateAllImages() {
     statusEl.textContent = '❌ あらすじ表紙 失敗 (' + done + '/' + total + ')';
   }
 
-  // 各キャラ
+  // 各キャラの外見バリエーション（ランダムに組み合わせて重複防止）
+  var hairStyles = ['short black hair', 'long brown hair', 'silver gray hair', 'blonde wavy hair', 'red straight hair', 'dark blue hair tied up', 'messy auburn hair', 'bald head', 'white hair with bangs', 'curly dark hair', 'pink short hair', 'long black ponytail'];
+  var bodyTypes = ['tall and slender', 'average build', 'stocky and muscular', 'petite', 'large and imposing', 'lean and athletic', 'slim and elegant', 'broad-shouldered'];
+
+  // シャッフル関数
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  var shuffledHair = shuffle(hairStyles);
+  var shuffledBody = shuffle(bodyTypes);
+
   for (var ci = 0; ci < chars.length; ci++) {
     statusEl.textContent = '🎨 ' + chars[ci].name + ' の表紙を生成中… (' + (++done) + '/' + total + ')';
 
-    var charImg = await generateImageBase64('Generate an anime-style character portrait for a murder mystery game. Mysterious person, dramatic lighting, dark atmosphere, upper body portrait. No text in the image.', statusEl);
+    var charDesc = getCharDescription(chars[ci]);
+    var hair = shuffledHair[ci % shuffledHair.length];
+    var body = shuffledBody[ci % shuffledBody.length];
+
+    var charPrompt = 'Generate a character portrait for a murder mystery game. ' +
+      'Setting: ' + setting.synopsis.substring(0, 100) + '. ' +
+      'Character: ' + charDesc.name + '. ' + charDesc.summary + '. ' +
+      'Appearance: ' + hair + ', ' + body + '. ' +
+      'The character should be dressed appropriately for their role and the setting described above. ' +
+      'Upper body portrait, dramatic lighting matching the setting atmosphere. ' +
+      'Each character must look distinctly different from others. ' +
+      'Do NOT include any text, letters, words, or names in the image.';
+
+    var charImg = await generateImageBase64(charPrompt, statusEl);
     if (charImg) {
       imageCache.chars[chars[ci].name] = charImg;
       statusEl.textContent = '✅ ' + chars[ci].name + ' 完了 (' + done + '/' + total + ')';
     } else {
       statusEl.textContent = '❌ ' + chars[ci].name + ' 失敗 (' + done + '/' + total + ')';
-      // 失敗したら残りは後で再試行
       break;
     }
   }
 
   var successCount = (imageCache.cover ? 1 : 0) + Object.keys(imageCache.chars).length;
-  statusEl.textContent = '完了: ' + successCount + '/' + total + '枚の画像を生成しました' + (successCount < total ? '' : ' ✅');
+  statusEl.textContent = '完了: ' + successCount + '/' + total + '枚の画像を生成しました' + (successCount >= total ? ' ✅' : '');
   if (btn) { btn.disabled = false; btn.textContent = '🎨 表紙画像を自動生成（再試行）'; }
   updateImagePreviews();
 }
